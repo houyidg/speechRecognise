@@ -11,7 +11,6 @@ var DefaultCacheManager = /** @class */ (function () {
         this.failHandleAudioPaths = new Set();
         this.cacheAudioBasePath = cacheAudioBasePath;
         !fs.existsSync(cacheAudioBasePath) && fs.mkdirSync(cacheAudioBasePath);
-        return this;
     };
     DefaultCacheManager.prototype.getTodayCacheTaskPath = function () {
         return this.cacheAudioBasePath + '\\' + TimeUtils_1.TimeUtils.getNowFormatDate();
@@ -19,7 +18,7 @@ var DefaultCacheManager = /** @class */ (function () {
     DefaultCacheManager.prototype.saveTaskPath = function (path) {
         //内存中
         this.lastHandleAudioPaths.add(path); //20161017141228
-        this.clearFailTaskPath(path);
+        this.removeFailTaskPath(path);
         //文件中
         var audioPath = this.getTodayCacheTaskPath();
         var isExist = fs.existsSync(audioPath);
@@ -32,7 +31,8 @@ var DefaultCacheManager = /** @class */ (function () {
         if (content.indexOf(path) < 0) {
             var audioPathContent = path + os.EOL;
             fs.appendFile(audioPath, audioPathContent, function (err) {
-                console.log('CacheManager saveTaskPath err', err);
+                if (err)
+                    console.log('CacheManager saveTaskPath err', err);
             });
             return false;
         }
@@ -40,13 +40,13 @@ var DefaultCacheManager = /** @class */ (function () {
     };
     DefaultCacheManager.prototype.saveFailTaskPath = function (path) {
         this.failHandleAudioPaths.add(path);
-        this.clearLastTaskPathOnlyCache(path);
-        this.clearLastTaskPathOnlyFile(path);
+        this.removeLastTaskPathOnlyCache(path);
+        this.removeLastTaskPathOnlyFile(path);
     };
-    DefaultCacheManager.prototype.clearFailTaskPath = function (path) {
+    DefaultCacheManager.prototype.removeFailTaskPath = function (path) {
         this.failHandleAudioPaths.delete(path);
     };
-    DefaultCacheManager.prototype.clearLastTaskPathOnlyFile = function (path) {
+    DefaultCacheManager.prototype.removeLastTaskPathOnlyFile = function (path) {
         var audioPath = this.getTodayCacheTaskPath();
         var content = fs.readFileSync(audioPath).toString();
         if (content.indexOf(path) > -1) {
@@ -57,14 +57,16 @@ var DefaultCacheManager = /** @class */ (function () {
         }
         return false;
     };
-    DefaultCacheManager.prototype.clearLastTaskPathOnlyCache = function (path) {
+    DefaultCacheManager.prototype.removeLastTaskPathOnlyCache = function (path) {
         this.lastHandleAudioPaths.delete(path);
     };
-    DefaultCacheManager.prototype.clearAllTaskPath = function () {
+    DefaultCacheManager.prototype.removeAllTaskPath = function () {
         this.lastHandleAudioPaths.clear();
         this.failHandleAudioPaths.clear();
     };
-    DefaultCacheManager.prototype.backupTaskPathByTimer = function () {
+    DefaultCacheManager.prototype.backUpTaskPathByTimer = function () {
+    };
+    DefaultCacheManager.prototype.saveTranslateResult = function (model) {
     };
     return DefaultCacheManager;
 }());

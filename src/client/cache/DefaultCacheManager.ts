@@ -1,3 +1,4 @@
+import { AudioRecogniseModel } from './../AudioModel';
 
 import { ICacheManager } from './ICacheManager';
 import * as fs from "fs";
@@ -8,12 +9,11 @@ export class DefaultCacheManager implements ICacheManager {
     private failHandleAudioPaths: Set<String>;//上一次处理的文件路径
     private cacheAudioBasePath;//以及处理的audio路径文件夹
 
-    public init(cacheAudioBasePath): DefaultCacheManager {
+    public init(cacheAudioBasePath) {
         this.lastHandleAudioPaths = new Set();
         this.failHandleAudioPaths = new Set();
         this.cacheAudioBasePath = cacheAudioBasePath;
         !fs.existsSync(cacheAudioBasePath) && fs.mkdirSync(cacheAudioBasePath);
-        return this;
     }
 
     public getTodayCacheTaskPath(): string {
@@ -23,7 +23,7 @@ export class DefaultCacheManager implements ICacheManager {
     public saveTaskPath(path: string): boolean {
         //内存中
         this.lastHandleAudioPaths.add(path);//20161017141228
-        this.clearFailTaskPath(path);
+        this.removeFailTaskPath(path);
         //文件中
         let audioPath = this.getTodayCacheTaskPath();
         let isExist = fs.existsSync(audioPath);
@@ -36,7 +36,8 @@ export class DefaultCacheManager implements ICacheManager {
         if (content.indexOf(path) < 0) {
             let audioPathContent = path + os.EOL;
             fs.appendFile(audioPath, audioPathContent, (err) => {
-                console.log('CacheManager saveTaskPath err', err);
+                if (err)
+                    console.log('CacheManager saveTaskPath err', err);
             });
             return false;
         }
@@ -45,15 +46,15 @@ export class DefaultCacheManager implements ICacheManager {
 
     public saveFailTaskPath(path: string) {
         this.failHandleAudioPaths.add(path);
-        this.clearLastTaskPathOnlyCache(path);
-        this.clearLastTaskPathOnlyFile(path);
+        this.removeLastTaskPathOnlyCache(path);
+        this.removeLastTaskPathOnlyFile(path);
     }
 
-    public clearFailTaskPath(path: string) {
+    public removeFailTaskPath(path: string) {
         this.failHandleAudioPaths.delete(path);
     }
 
-    public clearLastTaskPathOnlyFile(path: string) {
+    public removeLastTaskPathOnlyFile(path: string) {
         let audioPath = this.getTodayCacheTaskPath();
         let content = fs.readFileSync(audioPath).toString();
         if (content.indexOf(path) > -1) {
@@ -65,16 +66,20 @@ export class DefaultCacheManager implements ICacheManager {
         return false;
     }
 
-    public clearLastTaskPathOnlyCache(path: string) {
+    public removeLastTaskPathOnlyCache(path: string) {
         this.lastHandleAudioPaths.delete(path);
     }
 
-    public clearAllTaskPath() {
+    public removeAllTaskPath() {
         this.lastHandleAudioPaths.clear();
         this.failHandleAudioPaths.clear();
     }
 
-    public backupTaskPathByTimer() {
+    public backUpTaskPathByTimer() {
+
+    }
+
+    public saveTranslateResult(model: AudioRecogniseModel) {
 
     }
 }

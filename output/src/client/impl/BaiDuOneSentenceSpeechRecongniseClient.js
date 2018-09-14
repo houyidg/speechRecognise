@@ -35,7 +35,8 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
     }
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-var DefaultCacheManager_1 = require("../cache/DefaultCacheManager");
+var MySqlCacheManager_1 = require("./../cache/MySqlCacheManager");
+var AudioModel_1 = require("./../AudioModel");
 var TimeUtils_1 = require("../../util/TimeUtils");
 var baidu_aip_sdk_1 = require("baidu-aip-sdk");
 var fs = require("fs");
@@ -45,10 +46,10 @@ var child_process_1 = require("child_process");
 var config_1 = require("../../config");
 var isDebug = false;
 var RecongniseSpeechErrorByDivision = '-RecongniseSpeechErrorByDivision-';
-var RecongniseSpeechErrorByBaiduApi = '-RecongniseSpeechErrorByBaiduApi-';
 var RecongniseSpeechErrorByTransForm = '-RecongniseSpeechErrorByTransForm-';
+var RecongniseSpeechErrorByBaiduApi = '-RecongniseSpeechErrorByBaiduApi-';
 var timeout = 30 * 60 * 1000;
-var scanFileTimeByDay = 17; //每天早上10点开始轮训转换为语音
+var scanFileTimeByDay = 10; //每天早上10点开始轮训转换为语音
 /**
  * 对mp3,pcm,wav格式音频进行翻译
  * MP3:超过一分钟时长需要分割，再转换为pcm，再通过api翻译成文字写入文件
@@ -65,7 +66,7 @@ var BaiDuOneSentenceSpeechRecongniseClient = /** @class */ (function () {
     BaiDuOneSentenceSpeechRecongniseClient.prototype.prepare = function (_a) {
         var _b = _a.rootPath, rootPath = _b === void 0 ? process.cwd() : _b, _c = _a.voiceBasePath, voiceBasePath = _c === void 0 ? process.cwd() + "\\asset" : _c, _d = _a.divisionCachePath, divisionCachePath = _d === void 0 ? process.cwd() + "\\asset\\divisionCache" : _d, _e = _a.transformPath, transformPath = _e === void 0 ? process.cwd() + "\\asset\\transformCache" : _e, _f = _a.translateTextBasePath, translateTextBasePath = _f === void 0 ? process.cwd() + "\\asset\\translateText" : _f, _g = _a.cacheManagerPath, cacheManagerPath = _g === void 0 ? process.cwd() + "\\asset\\cacheAudioPath" : _g;
         this.rootPath = rootPath;
-        this.cacheManager = new DefaultCacheManager_1.DefaultCacheManager();
+        this.cacheManager = new MySqlCacheManager_1.MySqlCacheManager();
         this.cacheManager.init(cacheManagerPath);
         this.audioBasePath = voiceBasePath;
         this.divisionCachePath = divisionCachePath;
@@ -154,7 +155,6 @@ var BaiDuOneSentenceSpeechRecongniseClient = /** @class */ (function () {
                         suffix = subFile.substring(subFile.lastIndexOf('.') + 1, subFile.length);
                         fileNameExcludeSuffix = subFile.replace(suffix, '').replace('.', '');
                         audioData = fs.readFileSync(absolutePath);
-                        console.log('start  absolutePath:', absolutePath, ' subFile', subFile, ' suffix:', suffix, '  audio.length:', this.getAudioLen(audioData));
                         isMp3 = false;
                         if (subFile.toLowerCase().indexOf('mp3') > -1) {
                             isMp3 = true;
@@ -166,13 +166,14 @@ var BaiDuOneSentenceSpeechRecongniseClient = /** @class */ (function () {
                             console.log('start  只支持mp3和1分钟时长的pcm和wav格式音频');
                             return [3 /*break*/, 3];
                         }
+                        console.log('----------------start task  absolutePath:', absolutePath, ' subFile', subFile, ' suffix:', suffix, '  audio.length:', this.getAudioLen(audioData), ' ----------------');
                         return [4 /*yield*/, this.startHandleSingleVoice({ absolutePath: absolutePath, fileNameExcludeSuffix: fileNameExcludeSuffix, suffix: suffix, isMp3: isMp3 }).catch(function (e) {
-                                console.log('start catch startHandleSingleVoice error', e);
+                                console.log('----------------end task catch startHandleSingleVoice error', JSON.stringify(e), ' ----------------');
                             })];
                     case 2:
                         rs = _a.sent();
-                        this.cacheManager.clearLastTaskPathOnlyCache(absolutePath);
-                        console.log('start  startHandleSingleVoice rs', rs);
+                        this.cacheManager.removeLastTaskPathOnlyCache(absolutePath);
+                        console.log('----------------end task  startHandleSingleVoice rs', JSON.stringify(rs), ' ----------------');
                         _a.label = 3;
                     case 3:
                         index++;
@@ -185,13 +186,15 @@ var BaiDuOneSentenceSpeechRecongniseClient = /** @class */ (function () {
     BaiDuOneSentenceSpeechRecongniseClient.prototype.startHandleSingleVoice = function (_a) {
         var absolutePath = _a.absolutePath, fileNameExcludeSuffix = _a.fileNameExcludeSuffix, suffix = _a.suffix, isMp3 = _a.isMp3;
         return __awaiter(this, void 0, void 0, function () {
-            var rsCode, translateTextArr, translatePath, rs, translateTextPath, rs, timeQuanTum, translateTextArr, _loop_1, this_1, index, len, translateTextPath;
+            var rsCode, apiError, translateTextArr, translatePath, rs, translateTextPath, rs, timeQuanTum, translateTextArr, _loop_1, this_1, index, len, fileArr, model;
             var _this = this;
             return __generator(this, function (_b) {
                 switch (_b.label) {
                     case 0:
                         rsCode = 1;
+                        apiError = [];
                         if (!!isMp3) return [3 /*break*/, 2];
+                        apiError = [];
                         translateTextArr = [];
                         translatePath = absolutePath;
                         return [4 /*yield*/, this.handleSingleVoice({ translatePath: translatePath })];
@@ -202,6 +205,7 @@ var BaiDuOneSentenceSpeechRecongniseClient = /** @class */ (function () {
                         }
                         else {
                             translateTextArr.push(RecongniseSpeechErrorByBaiduApi);
+                            apiError.push({ index: 1, rs: rs });
                             rsCode = 3;
                         }
                         isDebug && console.log('handleSingleVoice !isMp3 rs', rs);
@@ -215,6 +219,7 @@ var BaiDuOneSentenceSpeechRecongniseClient = /** @class */ (function () {
                         timeQuanTum = TimeUtils_1.TimeUtils.getSecondByTimeOffset(rs.playTime);
                         if (!(timeQuanTum.length > 1)) return [3 /*break*/, 8];
                         translateTextArr = [];
+                        apiError = [];
                         _loop_1 = function (index, len) {
                             var startTime, nextTime, duration, srcPath, divisionPath, nextPath, rs_1, result;
                             return __generator(this, function (_a) {
@@ -239,7 +244,12 @@ var BaiDuOneSentenceSpeechRecongniseClient = /** @class */ (function () {
                                                 var translatePath = nextPath;
                                                 return _this.handleSingleVoice({ translatePath: translatePath });
                                             }).catch(function (rs) {
-                                                console.log('handleSingleVoice catch rs', rs);
+                                                if (rs) {
+                                                    console.log('handleSingleVoice catch rs', rs);
+                                                    return new Promise(function (rs, rj) {
+                                                        rs(rs);
+                                                    });
+                                                }
                                             })];
                                     case 1:
                                         rs_1 = _a.sent();
@@ -249,6 +259,7 @@ var BaiDuOneSentenceSpeechRecongniseClient = /** @class */ (function () {
                                         }
                                         else {
                                             translateTextArr.push(RecongniseSpeechErrorByBaiduApi);
+                                            apiError.push({ nextPath: nextPath, rs: rs_1 });
                                         }
                                         return [2 /*return*/];
                                 }
@@ -271,8 +282,15 @@ var BaiDuOneSentenceSpeechRecongniseClient = /** @class */ (function () {
                             rsCode = 3;
                         }
                         isDebug && console.log('saveTranslateTextToFile rsList', translateTextArr.join());
-                        translateTextPath = this.translateTextBasePath + '\\' + fileNameExcludeSuffix + '.txt';
-                        this.saveTranslateTextToFile({ translateTextPath: translateTextPath, translateTextArr: translateTextArr });
+                        fileArr = fileNameExcludeSuffix.split('_');
+                        model = new AudioModel_1.AudioRecogniseModel();
+                        model.audioId = fileNameExcludeSuffix;
+                        model.clientPhone = fileArr[2];
+                        model.content = translateTextArr.join();
+                        model.employeeNo = fileArr[1];
+                        model.translateDate = TimeUtils_1.TimeUtils.getNowFormatDate();
+                        model.recordDate = fileArr[0];
+                        this.cacheManager.saveTranslateResult(model);
                         return [3 /*break*/, 9];
                     case 8:
                         //转换分割音频时间段异常
@@ -280,11 +298,11 @@ var BaiDuOneSentenceSpeechRecongniseClient = /** @class */ (function () {
                         isDebug && console.log('timeQuanTum 转换分割音频时间段异常', timeQuanTum);
                         _b.label = 9;
                     case 9: return [2 /*return*/, new Promise(function (rs, rj) {
-                            if (rsCode != 1) {
+                            if (rsCode == 1) {
                                 rs({ rsCode: rsCode });
                             }
                             else {
-                                rj({ rsCode: rsCode });
+                                rj({ rsCode: rsCode, apiError: apiError });
                             }
                         })];
                 }

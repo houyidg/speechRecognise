@@ -1,9 +1,11 @@
+import { AudioRecogniseModel } from './../AudioModel';
 /**
     缓存组件
     *  这次执行任务时保存以及缓存所有路径
     *  这次执行失败时保存以及缓存路径
     *  定时备份执行的任务
     *  定时清除失败任务和执行任务的路径文件
+    *  保存翻译后的任务
  */
 export interface ICacheManager {
     init(cacheAudioBasePath)
@@ -13,10 +15,12 @@ export interface ICacheManager {
      */
     saveTaskPath(path: string): boolean;
     saveFailTaskPath(path: string);
-    clearLastTaskPathOnlyCache(path: string);
-    clearLastTaskPathOnlyFile(path: string);
-    clearFailTaskPath(path: string);
-    clearAllTaskPath();
-    backupTaskPathByTimer();
+    removeLastTaskPathOnlyCache(path: string);
+    removeLastTaskPathOnlyFile(path: string);
+    removeFailTaskPath(path: string);
+    removeAllTaskPath();
+    backUpTaskPathByTimer();
     getTodayCacheTaskPath();
+    saveTranslateResult(model: AudioRecogniseModel);
 }
+
