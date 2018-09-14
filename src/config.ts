@@ -1,0 +1,7 @@
+// 设置APPID/AK/SK
+const BAIDU_CONFIG = {
+    APP_ID: "11774993",
+    API_KEY: "yO42vCGZieM64LOWRgaZiXN4",
+    SECRET_KEY: "iRrRteLDjlb9AENVQZNWIgWtU5YVy0TO"
+}
+export { BAIDU_CONFIG };

@@ -1,0 +1,14 @@
+{
+    "extends": [
+        "tslint:recommended"
+    ],
+    "rules": {
+        "ordered-imports": false,
+        "no-console": [
+            false
+        ],
+        "only-arrow-functions": [
+            false
+        ]
+    }
+}
