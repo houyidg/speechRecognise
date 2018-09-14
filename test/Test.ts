@@ -12,6 +12,7 @@ new Promise((resolve, reject) => {
 }).then((rs) => {
     //如果上一个Then不返回值，这里接收到undefined
     console.log('rs2', rs);
+    1 / 0;
 }, (rs) => {
     console.log('rj2', rs);
 }).catch((rj) => {

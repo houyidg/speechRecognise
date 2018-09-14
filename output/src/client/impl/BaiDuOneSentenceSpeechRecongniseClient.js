@@ -62,6 +62,8 @@ var BaiDuOneSentenceSpeechRecongniseClient = /** @class */ (function () {
         this.scanCount = 0;
         this.scanFileTimeInterval = 60 * 1000; //60 s
         this.firstScanFileTime = 60 * 1000; //60 s
+        this.qps = 8; //api 可达最大并发度
+        this.supportDocumentFomrat = ['mp3', 'pcm', 'wav'];
     }
     BaiDuOneSentenceSpeechRecongniseClient.prototype.prepare = function (_a) {
         var _b = _a.rootPath, rootPath = _b === void 0 ? process.cwd() : _b, _c = _a.voiceBasePath, voiceBasePath = _c === void 0 ? process.cwd() + "\\asset" : _c, _d = _a.divisionCachePath, divisionCachePath = _d === void 0 ? process.cwd() + "\\asset\\divisionCache" : _d, _e = _a.transformPath, transformPath = _e === void 0 ? process.cwd() + "\\asset\\transformCache" : _e, _f = _a.translateTextBasePath, translateTextBasePath = _f === void 0 ? process.cwd() + "\\asset\\translateText" : _f, _g = _a.cacheManagerPath, cacheManagerPath = _g === void 0 ? process.cwd() + "\\asset\\cacheAudioPath" : _g;
@@ -128,65 +130,130 @@ var BaiDuOneSentenceSpeechRecongniseClient = /** @class */ (function () {
     };
     BaiDuOneSentenceSpeechRecongniseClient.prototype.handle = function () {
         return __awaiter(this, void 0, void 0, function () {
-            var scanFiles, index, len, subFile, absolutePath, stat, isHandle, suffix, fileNameExcludeSuffix, audioData, isMp3, rs;
+            var scanFiles, meetFiles, startTime, _loop_1, this_1, endTime;
+            var _this = this;
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
                         this.scanCount++;
                         scanFiles = fs.readdirSync(this.audioBasePath);
                         console.log('start  自动过滤非音频文件、已经解析的文件  this.scanCount:', this.scanCount);
-                        console.log('start  scanFiles:', scanFiles);
-                        index = 0, len = scanFiles.length;
+                        meetFiles = scanFiles.filter(function (fileName) {
+                            var absolutePath = _this.audioBasePath + "\\" + fileName;
+                            var stat = fs.lstatSync(absolutePath);
+                            if (!stat.isFile()) {
+                                console.log('filter ', fileName, '  !stat.isFile():', !stat.isFile());
+                                return false;
+                            }
+                            var isHandle = _this.cacheManager.saveTaskPath(fileName);
+                            if (isHandle) {
+                                console.log('filter ', fileName, '  isHandle:', isHandle);
+                                return false;
+                            }
+                            var suffix = fileName.substring(fileName.lastIndexOf('.') + 1, fileName.length);
+                            if (_this.supportDocumentFomrat.indexOf(suffix) < 0) {
+                                console.log('filter ', fileName, '  只支持mp3和1分钟时长的pcm和wav格式音频');
+                                return false;
+                            }
+                            return true;
+                        });
+                        startTime = new Date().getTime() / 1000;
+                        console.log('--------------------------------start all Task  总共需要执行的任务:', meetFiles.length, ' \n:', meetFiles);
+                        _loop_1 = function () {
+                            var maxConcurrence, needHandleTasks, taskPromiseArr, _loop_2, index, len, startTime_1, retryFileNameTask;
+                            return __generator(this, function (_a) {
+                                switch (_a.label) {
+                                    case 0:
+                                        console.log('\n\r');
+                                        maxConcurrence = Math.min(this_1.qps, meetFiles.length);
+                                        needHandleTasks = meetFiles.splice(0, maxConcurrence);
+                                        console.log('start 并发执行的任务:', needHandleTasks.length, ' \n:', needHandleTasks);
+                                        taskPromiseArr = [];
+                                        _loop_2 = function (index, len) {
+                                            var fileName = needHandleTasks[index];
+                                            var rs = this_1.assembleTask(fileName, function () {
+                                                //拿取剩余的任务执行
+                                                var nextTask = meetFiles.pop();
+                                                if (nextTask) {
+                                                    console.log('--------------------------------拿取下一个任务：', nextTask, '   等待执行的任务: ', meetFiles.length);
+                                                    return _this.assembleTask(nextTask, undefined);
+                                                }
+                                                else {
+                                                    console.log('--------------------------------并发通道 ', index, ' 执行完毕，等待其他通道！');
+                                                }
+                                            });
+                                            taskPromiseArr.push(rs);
+                                        };
+                                        for (index = 0, len = needHandleTasks.length; index < len; index++) {
+                                            _loop_2(index, len);
+                                        }
+                                        startTime_1 = new Date().getTime() / 1000;
+                                        return [4 /*yield*/, Promise.all(taskPromiseArr)
+                                                .then(function (rs) {
+                                                var endTime = new Date().getTime() / 1000;
+                                                console.log('----------------Promise.all cost time: ', (endTime - startTime_1).toFixed(0), '秒 rs:', JSON.stringify(rs));
+                                            }, function (e) {
+                                                var endTime = new Date().getTime() / 1000;
+                                                console.log('----------------Promise.all catch  time: ', (endTime - startTime_1).toFixed(0), '秒 rs:', JSON.stringify(e));
+                                            })];
+                                    case 1:
+                                        _a.sent();
+                                        retryFileNameTask = this_1.cacheManager.getRetryTaskPathsByToday();
+                                        console.log('--------------------------------需要重新处理的任务:', retryFileNameTask.length, '\n:', retryFileNameTask);
+                                        meetFiles.splice.apply(meetFiles, [meetFiles.length, 0].concat(retryFileNameTask));
+                                        return [2 /*return*/];
+                                }
+                            });
+                        };
+                        this_1 = this;
                         _a.label = 1;
                     case 1:
-                        if (!(index < len)) return [3 /*break*/, 4];
-                        subFile = scanFiles[index];
-                        absolutePath = this.audioBasePath + "\\" + subFile;
-                        stat = fs.lstatSync(absolutePath);
-                        if (!stat.isFile()) {
-                            console.log('start  !stat.isFile():', !stat.isFile());
-                            return [3 /*break*/, 3];
-                        }
-                        isHandle = this.cacheManager.saveTaskPath(absolutePath);
-                        if (isHandle) {
-                            console.log('start  isHandle:', isHandle);
-                            return [3 /*break*/, 3];
-                        }
-                        suffix = subFile.substring(subFile.lastIndexOf('.') + 1, subFile.length);
-                        fileNameExcludeSuffix = subFile.replace(suffix, '').replace('.', '');
-                        audioData = fs.readFileSync(absolutePath);
-                        isMp3 = false;
-                        if (subFile.toLowerCase().indexOf('mp3') > -1) {
-                            isMp3 = true;
-                        }
-                        else if (subFile.toLowerCase().indexOf('pcm') > -1 || subFile.toLowerCase().indexOf('wav') > -1) { //不需要转换
-                            isMp3 = false;
-                        }
-                        else {
-                            console.log('start  只支持mp3和1分钟时长的pcm和wav格式音频');
-                            return [3 /*break*/, 3];
-                        }
-                        console.log('----------------start task  absolutePath:', absolutePath, ' subFile', subFile, ' suffix:', suffix, '  audio.length:', this.getAudioLen(audioData), ' ----------------');
-                        return [4 /*yield*/, this.startHandleSingleVoice({ absolutePath: absolutePath, fileNameExcludeSuffix: fileNameExcludeSuffix, suffix: suffix, isMp3: isMp3 }).catch(function (e) {
-                                console.log('----------------end task catch startHandleSingleVoice error', JSON.stringify(e), ' ----------------');
-                            })];
+                        if (!(meetFiles.length > 0)) return [3 /*break*/, 3];
+                        return [5 /*yield**/, _loop_1()];
                     case 2:
-                        rs = _a.sent();
-                        this.cacheManager.removeLastTaskPathOnlyCache(absolutePath);
-                        console.log('----------------end task  startHandleSingleVoice rs', JSON.stringify(rs), ' ----------------');
-                        _a.label = 3;
-                    case 3:
-                        index++;
+                        _a.sent();
                         return [3 /*break*/, 1];
-                    case 4: return [2 /*return*/];
+                    case 3:
+                        endTime = new Date().getTime() / 1000;
+                        console.log('--------------------------------end all Task cost time:', (endTime - startTime).toFixed(0), '秒');
+                        console.log('\n\r');
+                        return [2 /*return*/];
                 }
             });
+        });
+    };
+    BaiDuOneSentenceSpeechRecongniseClient.prototype.assembleTask = function (fileName, nextTaskCallback) {
+        var _this = this;
+        var startTime = new Date().getTime() / 1000;
+        var absolutePath = this.audioBasePath + "\\" + fileName;
+        var suffix = fileName.substring(fileName.lastIndexOf('.') + 1, fileName.length);
+        var fileNameExcludeSuffix = fileName.replace(suffix, '').replace('.', '');
+        var audioData = fs.readFileSync(absolutePath);
+        var isMp3 = fileName.toLowerCase().indexOf('mp3') > -1;
+        console.log('----------------start task  fileName：', fileName, ' suffix:', suffix, '  audio.length:', this.getAudioLen(audioData), ' ----------------');
+        //real do 
+        return this.startHandleSingleVoice({ absolutePath: absolutePath, fileNameExcludeSuffix: fileNameExcludeSuffix, suffix: suffix, isMp3: isMp3 }).then(function (rs) {
+            _this.cacheManager.removeLastTaskPathOnlyCache(fileName);
+            _this.cacheManager.removeFailTaskPath(fileName);
+            var endTime = new Date().getTime() / 1000;
+            console.log('----------------end task fileName：', fileName, ' cost time: ', (endTime - startTime).toFixed(0), '秒 startHandleSingleVoice rs：', JSON.stringify(rs), ' ----------------');
+            //continue add task 
+            if (nextTaskCallback)
+                return nextTaskCallback();
+        }, function (e) {
+            _this.cacheManager.removeLastTaskPathOnlyCache(fileName);
+            _this.cacheManager.removeLastTaskPathOnlyFile(fileName);
+            _this.cacheManager.saveFailTaskPath(fileName);
+            var endTime = new Date().getTime() / 1000;
+            console.log('----------------end task catch fileName：', fileName, '  cost time: ', (endTime - startTime).toFixed(0), '秒 startHandleSingleVoice error：', JSON.stringify(e), ' ----------------');
+            if (nextTaskCallback)
+                return nextTaskCallback();
         });
     };
     BaiDuOneSentenceSpeechRecongniseClient.prototype.startHandleSingleVoice = function (_a) {
         var absolutePath = _a.absolutePath, fileNameExcludeSuffix = _a.fileNameExcludeSuffix, suffix = _a.suffix, isMp3 = _a.isMp3;
         return __awaiter(this, void 0, void 0, function () {
-            var rsCode, apiError, translateTextArr, translatePath, rs, translateTextPath, rs, timeQuanTum, translateTextArr, _loop_1, this_1, index, len, fileArr, model;
+            var rsCode, apiError, translateTextArr, translatePath, rs, translateTextPath, rs, timeQuanTum, translateTextArr, _loop_3, this_2, index, len, fileArr, model, translateTextPath;
             var _this = this;
             return __generator(this, function (_b) {
                 switch (_b.label) {
@@ -220,7 +287,7 @@ var BaiDuOneSentenceSpeechRecongniseClient = /** @class */ (function () {
                         if (!(timeQuanTum.length > 1)) return [3 /*break*/, 8];
                         translateTextArr = [];
                         apiError = [];
-                        _loop_1 = function (index, len) {
+                        _loop_3 = function (index, len) {
                             var startTime, nextTime, duration, srcPath, divisionPath, nextPath, rs_1, result;
                             return __generator(this, function (_a) {
                                 switch (_a.label) {
@@ -229,9 +296,9 @@ var BaiDuOneSentenceSpeechRecongniseClient = /** @class */ (function () {
                                         nextTime = timeQuanTum[index + 1];
                                         duration = TimeUtils_1.TimeUtils.getMinDuration(startTime, nextTime);
                                         srcPath = absolutePath;
-                                        divisionPath = this_1.divisionCachePath + '\\' + fileNameExcludeSuffix + '_division_' + index + '.' + suffix;
+                                        divisionPath = this_2.divisionCachePath + '\\' + fileNameExcludeSuffix + '_division_' + index + '.' + suffix;
                                         nextPath = divisionPath;
-                                        return [4 /*yield*/, this_1.divisionVoiceByTime({ startTime: startTime, duration: duration, srcPath: srcPath, divisionPath: divisionPath })
+                                        return [4 /*yield*/, this_2.divisionVoiceByTime({ startTime: startTime, duration: duration, srcPath: srcPath, divisionPath: divisionPath })
                                                 .then(function (rs) {
                                                 isDebug && console.log('divisionVoiceByTime rs', rs);
                                                 //change pcm
@@ -259,18 +326,18 @@ var BaiDuOneSentenceSpeechRecongniseClient = /** @class */ (function () {
                                         }
                                         else {
                                             translateTextArr.push(RecongniseSpeechErrorByBaiduApi);
-                                            apiError.push({ nextPath: nextPath, rs: rs_1 });
+                                            apiError.push({ fileName: fileNameExcludeSuffix + '.' + suffix, rs: rs_1 });
                                         }
                                         return [2 /*return*/];
                                 }
                             });
                         };
-                        this_1 = this;
+                        this_2 = this;
                         index = 0, len = timeQuanTum.length;
                         _b.label = 4;
                     case 4:
                         if (!(index < len - 1)) return [3 /*break*/, 7];
-                        return [5 /*yield**/, _loop_1(index, len)];
+                        return [5 /*yield**/, _loop_3(index, len)];
                     case 5:
                         _b.sent();
                         _b.label = 6;
@@ -288,9 +355,11 @@ var BaiDuOneSentenceSpeechRecongniseClient = /** @class */ (function () {
                         model.clientPhone = fileArr[2];
                         model.content = translateTextArr.join();
                         model.employeeNo = fileArr[1];
-                        model.translateDate = TimeUtils_1.TimeUtils.getNowFormatDate();
+                        model.translateDate = TimeUtils_1.TimeUtils.getNowAccurateDate();
                         model.recordDate = fileArr[0];
                         this.cacheManager.saveTranslateResult(model);
+                        translateTextPath = this.translateTextBasePath + '\\' + fileNameExcludeSuffix + '.txt';
+                        this.saveTranslateTextToFile({ translateTextPath: translateTextPath, translateTextArr: translateTextArr });
                         return [3 /*break*/, 9];
                     case 8:
                         //转换分割音频时间段异常
@@ -416,7 +485,7 @@ var BaiDuOneSentenceSpeechRecongniseClient = /** @class */ (function () {
         });
     };
     BaiDuOneSentenceSpeechRecongniseClient.prototype.getAudioLen = function (voice) {
-        return voice && (voice.length / 1024 + 'kb');
+        return voice && ((voice.length / 1024).toFixed(0) + 'kb');
     };
     BaiDuOneSentenceSpeechRecongniseClient.prototype.stop = function () {
     };

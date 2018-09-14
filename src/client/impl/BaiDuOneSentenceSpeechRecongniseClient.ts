@@ -1,3 +1,4 @@
+import { rejects } from 'assert';
 import { MySqlCacheManager } from './../cache/MySqlCacheManager';
 import { AudioRecogniseModel } from './../AudioModel';
 import { ICacheManager } from './../cache/ICacheManager';
@@ -34,6 +35,8 @@ export class BaiDuOneSentenceSpeechRecongniseClient implements ISpeechRecongnise
     scanCount = 0;
     scanFileTimeInterval = 60 * 1000;//60 s
     firstScanFileTime = 60 * 1000;//60 s
+    qps = 8;//api 可达最大并发度
+    supportDocumentFomrat = ['mp3', 'pcm', 'wav'];
     public prepare({ rootPath = process.cwd(), voiceBasePath = process.cwd() + "\\asset", divisionCachePath = process.cwd() + "\\asset\\divisionCache"
         , transformPath = process.cwd() + "\\asset\\transformCache", translateTextBasePath = process.cwd() + "\\asset\\translateText",
         cacheManagerPath = process.cwd() + "\\asset\\cacheAudioPath" }) {//准备环境
@@ -99,41 +102,92 @@ export class BaiDuOneSentenceSpeechRecongniseClient implements ISpeechRecongnise
         this.scanCount++;
         let scanFiles = fs.readdirSync(this.audioBasePath);
         console.log('start  自动过滤非音频文件、已经解析的文件  this.scanCount:', this.scanCount);
-        console.log('start  scanFiles:', scanFiles);
-        for (let index = 0, len = scanFiles.length; index < len; index++) {
-            let subFile = scanFiles[index];
-            let absolutePath = `${this.audioBasePath}\\${subFile}`;
+        let meetFiles: string[] = scanFiles.filter((fileName) => {
+            let absolutePath = `${this.audioBasePath}\\${fileName}`;
             let stat = fs.lstatSync(absolutePath)
             if (!stat.isFile()) {
-                console.log('start  !stat.isFile():', !stat.isFile());
-                continue;
+                console.log('filter ', fileName, '  !stat.isFile():', !stat.isFile());
+                return false;
             }
-            let isHandle = this.cacheManager.saveTaskPath(absolutePath);
+            let isHandle = this.cacheManager.saveTaskPath(fileName);
             if (isHandle) {
-                console.log('start  isHandle:', isHandle);
-                continue;
+                console.log('filter ', fileName, '  isHandle:', isHandle);
+                return false;
             }
-            let suffix = subFile.substring(subFile.lastIndexOf('.') + 1, subFile.length);
-            let fileNameExcludeSuffix = subFile.replace(suffix, '').replace('.', '');
-            let audioData = fs.readFileSync(absolutePath);
-
-            let isMp3 = false;
-            if (subFile.toLowerCase().indexOf('mp3') > -1) {
-                isMp3 = true;
-            } else if (subFile.toLowerCase().indexOf('pcm') > -1 || subFile.toLowerCase().indexOf('wav') > -1) {//不需要转换
-                isMp3 = false;
-            } else {
-                console.log('start  只支持mp3和1分钟时长的pcm和wav格式音频');
-                continue;
+            let suffix = fileName.substring(fileName.lastIndexOf('.') + 1, fileName.length);
+            if (this.supportDocumentFomrat.indexOf(suffix) < 0) {
+                console.log('filter ', fileName, '  只支持mp3和1分钟时长的pcm和wav格式音频');
+                return false;
             }
-            console.log('----------------start task  absolutePath:', absolutePath, ' subFile', subFile, ' suffix:', suffix, '  audio.length:', this.getAudioLen(audioData), ' ----------------');
-            //real do 
-            let rs = await this.startHandleSingleVoice({ absolutePath, fileNameExcludeSuffix, suffix, isMp3 }).catch((e) => {
-                console.log('----------------end task catch startHandleSingleVoice error', JSON.stringify(e), ' ----------------');
-            });
-            this.cacheManager.removeLastTaskPathOnlyCache(absolutePath);
-            console.log('----------------end task  startHandleSingleVoice rs', JSON.stringify(rs), ' ----------------');
+            return true;
+        });
+        let startTime = new Date().getTime() / 1000;
+        console.log('--------------------------------start all Task  总共需要执行的任务:', meetFiles.length, ' \n:', meetFiles);
+        while (meetFiles.length > 0) {
+            console.log('\n\r');
+            let maxConcurrence = Math.min(this.qps, meetFiles.length);
+            let needHandleTasks = meetFiles.splice(0, maxConcurrence);
+            console.log('start 并发执行的任务:', needHandleTasks.length, ' \n:', needHandleTasks);
+            let taskPromiseArr = [];
+            for (let index = 0, len = needHandleTasks.length; index < len; index++) {
+                let fileName = needHandleTasks[index];
+                let rs = this.assembleTask(fileName, () => {
+                    //拿取剩余的任务执行
+                    let nextTask = meetFiles.pop();
+                    if (nextTask) {
+                        console.log('--------------------------------拿取下一个任务：', nextTask, '   等待执行的任务: ', meetFiles.length);
+                        return this.assembleTask(nextTask, undefined);
+                    } else {
+                        console.log('--------------------------------并发通道 ', index, ' 执行完毕，等待其他通道！');
+                    }
+                });
+                taskPromiseArr.push(rs);
+            }
+            let startTime = new Date().getTime() / 1000;
+            await Promise.all(taskPromiseArr)
+                .then((rs) => {
+                    let endTime = new Date().getTime() / 1000;
+                    console.log('----------------Promise.all cost time: ', (endTime - startTime).toFixed(0), '秒 rs:', JSON.stringify(rs));
+                }, (e) => {
+                    let endTime = new Date().getTime() / 1000;
+                    console.log('----------------Promise.all catch  time: ', (endTime - startTime).toFixed(0), '秒 rs:', JSON.stringify(e));
+                });
+            //continue get fail task
+            let retryFileNameTask: string[] = this.cacheManager.getRetryTaskPathsByToday();
+            console.log('--------------------------------需要重新处理的任务:', retryFileNameTask.length, '\n:', retryFileNameTask);
+            meetFiles.splice(meetFiles.length, 0, ...retryFileNameTask);
         }
+        let endTime = new Date().getTime() / 1000;
+        console.log('--------------------------------end all Task cost time:', (endTime - startTime).toFixed(0), '秒');
+        console.log('\n\r');
+    }
+
+    assembleTask(fileName, nextTaskCallback) {
+        let startTime = new Date().getTime() / 1000;
+        let absolutePath = `${this.audioBasePath}\\${fileName}`;
+        let suffix = fileName.substring(fileName.lastIndexOf('.') + 1, fileName.length);
+        let fileNameExcludeSuffix = fileName.replace(suffix, '').replace('.', '');
+        let audioData = fs.readFileSync(absolutePath);
+        let isMp3 = fileName.toLowerCase().indexOf('mp3') > -1;
+        console.log('----------------start task  fileName：', fileName, ' suffix:', suffix, '  audio.length:', this.getAudioLen(audioData), ' ----------------');
+        //real do 
+        return this.startHandleSingleVoice({ absolutePath, fileNameExcludeSuffix, suffix, isMp3 }).then((rs) => {
+            this.cacheManager.removeLastTaskPathOnlyCache(fileName);
+            this.cacheManager.removeFailTaskPath(fileName);
+            let endTime = new Date().getTime() / 1000;
+            console.log('----------------end task fileName：', fileName, ' cost time: ', (endTime - startTime).toFixed(0), '秒 startHandleSingleVoice rs：', JSON.stringify(rs), ' ----------------');
+            //continue add task 
+            if (nextTaskCallback)
+                return nextTaskCallback();
+        }, (e) => {
+            this.cacheManager.removeLastTaskPathOnlyCache(fileName);
+            this.cacheManager.removeLastTaskPathOnlyFile(fileName);
+            this.cacheManager.saveFailTaskPath(fileName);
+            let endTime = new Date().getTime() / 1000;
+            console.log('----------------end task catch fileName：', fileName, '  cost time: ', (endTime - startTime).toFixed(0), '秒 startHandleSingleVoice error：', JSON.stringify(e), ' ----------------');
+            if (nextTaskCallback)
+                return nextTaskCallback();
+        });
     }
 
     async  startHandleSingleVoice({ absolutePath, fileNameExcludeSuffix, suffix, isMp3 }) {
@@ -196,7 +250,7 @@ export class BaiDuOneSentenceSpeechRecongniseClient implements ISpeechRecongnise
                         translateTextArr.push(result[0]);
                     } else {
                         translateTextArr.push(RecongniseSpeechErrorByBaiduApi);
-                        apiError.push({ nextPath: nextPath, rs: rs });
+                        apiError.push({ fileName: fileNameExcludeSuffix + '.' + suffix, rs: rs });
                     }
                 }
                 if (translateTextArr.indexOf(RecongniseSpeechErrorByBaiduApi) > -1) {
@@ -211,12 +265,12 @@ export class BaiDuOneSentenceSpeechRecongniseClient implements ISpeechRecongnise
                 model.clientPhone = fileArr[2];
                 model.content = translateTextArr.join();
                 model.employeeNo = fileArr[1];
-                model.translateDate = TimeUtils.getNowFormatDate();
+                model.translateDate = TimeUtils.getNowAccurateDate();
                 model.recordDate = fileArr[0];
                 this.cacheManager.saveTranslateResult(model);
                 // //存储到文件
-                // let translateTextPath = this.translateTextBasePath + '\\' + fileNameExcludeSuffix + '.txt';
-                // this.saveTranslateTextToFile({ translateTextPath, translateTextArr });
+                let translateTextPath = this.translateTextBasePath + '\\' + fileNameExcludeSuffix + '.txt';
+                this.saveTranslateTextToFile({ translateTextPath, translateTextArr });
             } else {
                 //转换分割音频时间段异常
                 rsCode = 2;
@@ -316,7 +370,7 @@ export class BaiDuOneSentenceSpeechRecongniseClient implements ISpeechRecongnise
     }
 
     getAudioLen(voice) {
-        return voice && (voice.length / 1024 + 'kb');
+        return voice && ((voice.length / 1024).toFixed(0) + 'kb');
     }
 
 

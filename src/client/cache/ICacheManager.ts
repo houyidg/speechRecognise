@@ -18,6 +18,7 @@ export interface ICacheManager {
     removeLastTaskPathOnlyCache(path: string);
     removeLastTaskPathOnlyFile(path: string);
     removeFailTaskPath(path: string);
+    getRetryTaskPathsByToday(): string[];
     removeAllTaskPath();
     backUpTaskPathByTimer();
     getTodayCacheTaskPath();

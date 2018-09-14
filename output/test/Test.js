@@ -47,6 +47,7 @@ new Promise(function (resolve, reject) {
 }).then(function (rs) {
     //如果上一个Then不返回值，这里接收到undefined
     console.log('rs2', rs);
+    1 / 0;
 }, function (rs) {
     console.log('rj2', rs);
 }).catch(function (rj) {

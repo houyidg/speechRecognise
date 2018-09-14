@@ -15,9 +15,7 @@ var DefaultCacheManager_1 = require("./DefaultCacheManager");
 var MySqlCacheManager = /** @class */ (function (_super) {
     __extends(MySqlCacheManager, _super);
     function MySqlCacheManager() {
-        var _this = _super !== null && _super.apply(this, arguments) || this;
-        _this.timeout = 10 * 1000;
-        return _this;
+        return _super !== null && _super.apply(this, arguments) || this;
     }
     MySqlCacheManager.prototype.init = function (cacheAudioBasePath) {
         _super.prototype.init.call(this, cacheAudioBasePath);
@@ -30,23 +28,27 @@ var MySqlCacheManager = /** @class */ (function (_super) {
         });
     };
     MySqlCacheManager.prototype.saveTranslateResult = function (model) {
+        var _this = this;
         _super.prototype.saveTranslateResult.call(this, model);
-        // this.makeSureConnected();
-        var addSql = 'INSERT INTO audiorecognisemodel(audioId,recordDate,translateDate,content,employeeNo,clientPhone) VALUES(?,?,?,?,?,?)';
-        var addSqlParams = [model.audioId, model.recordDate, model.translateDate, model.content, model.employeeNo, model.clientPhone];
-        this.connection.query(addSql, addSqlParams, function (err, result) {
+        var searchSql = 'SELECT audioId FROM audiorecognisemodel WHERE audioId=?';
+        this.connection.query(searchSql, [model.audioId], function (err, result) {
             if (err) {
-                console.log('MySqlCacheManager [INSERT ERROR] - ', err.message);
+                console.log('MySqlCacheManager [SELECT ERROR] - ', err.message);
                 return;
             }
-            console.log('MySqlCacheManager--------------------------INSERT----------------------------');
-            console.log('MySqlCacheManager INSERT ID:', result);
-            console.log('MySqlCacheManager-----------------------------------------------------------------\n\n');
+            var sql = 'INSERT INTO audiorecognisemodel(audioId,recordDate,translateDate,content,employeeNo,clientPhone) VALUES(?,?,?,?,?,?)';
+            var params = [model.audioId, model.recordDate, model.translateDate, model.content, model.employeeNo, model.clientPhone];
+            if (result && result[0] && result[0].audioId && result[0].audioId == model.audioId) {
+                sql = 'UPDATE audiorecognisemodel SET recordDate=?,translateDate=?,content=?,employeeNo=?,clientPhone=? WHERE audioId = ?';
+                params = [model.recordDate, model.translateDate, model.content, model.employeeNo, model.clientPhone, model.audioId];
+            }
+            _this.connection.query(sql, params, function (err, result) {
+                if (err) {
+                    console.log('MySqlCacheManager [INSERT ERROR] - ', err.message);
+                    return;
+                }
+            });
         });
-        // this.connection.end();
-    };
-    MySqlCacheManager.prototype.makeSureConnected = function () {
-        this.connection.connect();
     };
     return MySqlCacheManager;
 }(DefaultCacheManager_1.DefaultCacheManager));
