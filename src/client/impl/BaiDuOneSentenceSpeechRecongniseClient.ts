@@ -26,34 +26,37 @@ const scanFileTimeByDay = 10;//每天早上10点开始轮训转换为语音
  */
 export class BaiDuOneSentenceSpeechRecongniseClient implements ISpeechRecongniseClient {
     client: speech;
+    resBasePath: string;
     audioBasePath: string;
     translateTextBasePath: string;
     divisionCachePath: string;
     transformPath: string;
-    rootPath: string;
     cacheManager: ICacheManager;
     scanCount = 0;
     scanFileTimeInterval = 60 * 1000;//60 s
     firstScanFileTime = 60 * 1000;//60 s
     qps = 8;//api 可达最大并发度
     supportDocumentFomrat = ['mp3', 'pcm', 'wav'];
-    public prepare({ rootPath = process.cwd(), voiceBasePath = process.cwd() + "\\asset", divisionCachePath = process.cwd() + "\\asset\\divisionCache"
-        , transformPath = process.cwd() + "\\asset\\transformCache", translateTextBasePath = process.cwd() + "\\asset\\translateText",
-        cacheManagerPath = process.cwd() + "\\asset\\cacheAudioPath" }) {//准备环境
-        this.rootPath = rootPath;
-        this.cacheManager = new MySqlCacheManager();
-        this.cacheManager.init(cacheManagerPath);
+    public prepare({ resBasePath = process.cwd() + "\\asset", voiceBasePath = resBasePath,
+        divisionCachePath = resBasePath + "\\divisionCache"
+        , transformPath = resBasePath + "\\transformCache", translateTextBasePath = resBasePath + "\\translateText",
+        cacheManagerPath = resBasePath + "\\cacheAudioPath" }) {//准备环境
         this.audioBasePath = voiceBasePath;
         this.divisionCachePath = divisionCachePath;
         this.transformPath = transformPath;
         this.translateTextBasePath = translateTextBasePath;
+        this.resBasePath = resBasePath;
+        !fs.existsSync(resBasePath) && fs.mkdirSync(resBasePath);
+        !fs.existsSync(voiceBasePath) && fs.mkdirSync(voiceBasePath);
         !fs.existsSync(divisionCachePath) && fs.mkdirSync(divisionCachePath);
         !fs.existsSync(translateTextBasePath) && fs.mkdirSync(translateTextBasePath);
         !fs.existsSync(transformPath) && fs.mkdirSync(transformPath);
+        this.cacheManager = new MySqlCacheManager();
+        this.cacheManager.init(cacheManagerPath);
         console.log('SpeechRecongniseClient transformPath ', transformPath);
         console.log('SpeechRecongniseClient divisionCachePath ', divisionCachePath);
         console.log('SpeechRecongniseClient basePath', voiceBasePath);
-        console.log('SpeechRecongniseClient rootPath', rootPath);
+        console.log('SpeechRecongniseClient resBasePath', resBasePath);
         // 新建一个对象，建议只保存一个对象调用服务接口
         this.client = new speech(BAIDU_CONFIG.APP_ID, BAIDU_CONFIG.API_KEY, BAIDU_CONFIG.SECRET_KEY);
         // 设置request库的一些参数，例如代理服务地址，超时时间等
@@ -193,7 +196,8 @@ export class BaiDuOneSentenceSpeechRecongniseClient implements ISpeechRecongnise
     async  startHandleSingleVoice({ absolutePath, fileNameExcludeSuffix, suffix, isMp3 }) {
         let rsCode = 1;//1 ok ,2 gettime fail ,3 api fail,4 
         let apiError = [];
-        if (!isMp3) {
+        let newSuffix = suffix;
+        if (false) {
             apiError = [];
             let translateTextArr: string[] = [];
             // todo 翻译
@@ -228,15 +232,20 @@ export class BaiDuOneSentenceSpeechRecongniseClient implements ISpeechRecongnise
                     let rs = await this.divisionVoiceByTime({ startTime, duration, srcPath, divisionPath })
                         .then((rs) => {
                             isDebug && console.log('divisionVoiceByTime rs', rs);
-                            //change pcm
-                            let transformPath = this.transformPath + '\\' + fileNameExcludeSuffix + '_transform_' + index + '.pcm';
-                            nextPath = transformPath;
-                            return this.transformMp3ToPcm({ divisionPath, transformPath });
+                            if (!isMp3) {
+                                return new Promise((rs, rj) => { rs(1); });
+                            } else {
+                                //change pcm
+                                let transformPath = this.transformPath + '\\' + fileNameExcludeSuffix + '_transform_' + index + '.pcm';
+                                nextPath = transformPath;
+                                newSuffix = 'pcm';
+                                return this.transformMp3ToPcm({ divisionPath, transformPath });
+                            }
                         }).then((rs) => {
                             isDebug && console.log('transformMp3ToPcm rs', rs);
                             // todo 翻译
                             let translatePath = nextPath;
-                            return this.handleSingleVoice({ translatePath });
+                            return this.handleSingleVoice({ translatePath, newSuffix });
                         }).catch((rs) => {
                             if (rs) {
                                 console.log('handleSingleVoice catch rs', rs);
@@ -290,12 +299,12 @@ export class BaiDuOneSentenceSpeechRecongniseClient implements ISpeechRecongnise
         fs.writeFileSync(translateTextPath, translateTextArr.join(os.EOL));
     }
 
-    async handleSingleVoice({ translatePath }): Promise<any> {
+    async handleSingleVoice({ translatePath, newSuffix = 'pcm' }): Promise<any> {
         let voice = fs.readFileSync(translatePath);
         return new Promise((resolve, rejects) => {
             if (translatePath && voice && voice.length > 0) {
                 // 识别本地文件
-                this.client.recognize(voice, "pcm", 16000).then((result) => {
+                this.client.recognize(voice, newSuffix, 16000).then((result) => {
                     isDebug && console.log('handleSingleVoice recognize voice name:', translatePath, " <recognize>: " + JSON.stringify(result));
                     resolve(result);
                 }, (err) => {

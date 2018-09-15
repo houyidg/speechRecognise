@@ -66,21 +66,23 @@ var BaiDuOneSentenceSpeechRecongniseClient = /** @class */ (function () {
         this.supportDocumentFomrat = ['mp3', 'pcm', 'wav'];
     }
     BaiDuOneSentenceSpeechRecongniseClient.prototype.prepare = function (_a) {
-        var _b = _a.rootPath, rootPath = _b === void 0 ? process.cwd() : _b, _c = _a.voiceBasePath, voiceBasePath = _c === void 0 ? process.cwd() + "\\asset" : _c, _d = _a.divisionCachePath, divisionCachePath = _d === void 0 ? process.cwd() + "\\asset\\divisionCache" : _d, _e = _a.transformPath, transformPath = _e === void 0 ? process.cwd() + "\\asset\\transformCache" : _e, _f = _a.translateTextBasePath, translateTextBasePath = _f === void 0 ? process.cwd() + "\\asset\\translateText" : _f, _g = _a.cacheManagerPath, cacheManagerPath = _g === void 0 ? process.cwd() + "\\asset\\cacheAudioPath" : _g;
-        this.rootPath = rootPath;
-        this.cacheManager = new MySqlCacheManager_1.MySqlCacheManager();
-        this.cacheManager.init(cacheManagerPath);
+        var _b = _a.resBasePath, resBasePath = _b === void 0 ? process.cwd() + "\\asset" : _b, _c = _a.voiceBasePath, voiceBasePath = _c === void 0 ? resBasePath : _c, _d = _a.divisionCachePath, divisionCachePath = _d === void 0 ? resBasePath + "\\divisionCache" : _d, _e = _a.transformPath, transformPath = _e === void 0 ? resBasePath + "\\transformCache" : _e, _f = _a.translateTextBasePath, translateTextBasePath = _f === void 0 ? resBasePath + "\\translateText" : _f, _g = _a.cacheManagerPath, cacheManagerPath = _g === void 0 ? resBasePath + "\\cacheAudioPath" : _g;
         this.audioBasePath = voiceBasePath;
         this.divisionCachePath = divisionCachePath;
         this.transformPath = transformPath;
         this.translateTextBasePath = translateTextBasePath;
+        this.resBasePath = resBasePath;
+        !fs.existsSync(resBasePath) && fs.mkdirSync(resBasePath);
+        !fs.existsSync(voiceBasePath) && fs.mkdirSync(voiceBasePath);
         !fs.existsSync(divisionCachePath) && fs.mkdirSync(divisionCachePath);
         !fs.existsSync(translateTextBasePath) && fs.mkdirSync(translateTextBasePath);
         !fs.existsSync(transformPath) && fs.mkdirSync(transformPath);
+        this.cacheManager = new MySqlCacheManager_1.MySqlCacheManager();
+        this.cacheManager.init(cacheManagerPath);
         console.log('SpeechRecongniseClient transformPath ', transformPath);
         console.log('SpeechRecongniseClient divisionCachePath ', divisionCachePath);
         console.log('SpeechRecongniseClient basePath', voiceBasePath);
-        console.log('SpeechRecongniseClient rootPath', rootPath);
+        console.log('SpeechRecongniseClient resBasePath', resBasePath);
         // 新建一个对象，建议只保存一个对象调用服务接口
         this.client = new baidu_aip_sdk_1.speech(config_1.BAIDU_CONFIG.APP_ID, config_1.BAIDU_CONFIG.API_KEY, config_1.BAIDU_CONFIG.SECRET_KEY);
         // 设置request库的一些参数，例如代理服务地址，超时时间等
@@ -253,14 +255,15 @@ var BaiDuOneSentenceSpeechRecongniseClient = /** @class */ (function () {
     BaiDuOneSentenceSpeechRecongniseClient.prototype.startHandleSingleVoice = function (_a) {
         var absolutePath = _a.absolutePath, fileNameExcludeSuffix = _a.fileNameExcludeSuffix, suffix = _a.suffix, isMp3 = _a.isMp3;
         return __awaiter(this, void 0, void 0, function () {
-            var rsCode, apiError, translateTextArr, translatePath, rs, translateTextPath, rs, timeQuanTum, translateTextArr, _loop_3, this_2, index, len, fileArr, model, translateTextPath;
+            var rsCode, apiError, newSuffix, translateTextArr, translatePath, rs, translateTextPath, rs, timeQuanTum, translateTextArr, _loop_3, this_2, index, len, fileArr, model, translateTextPath;
             var _this = this;
             return __generator(this, function (_b) {
                 switch (_b.label) {
                     case 0:
                         rsCode = 1;
                         apiError = [];
-                        if (!!isMp3) return [3 /*break*/, 2];
+                        newSuffix = suffix;
+                        if (!false) return [3 /*break*/, 2];
                         apiError = [];
                         translateTextArr = [];
                         translatePath = absolutePath;
@@ -301,15 +304,21 @@ var BaiDuOneSentenceSpeechRecongniseClient = /** @class */ (function () {
                                         return [4 /*yield*/, this_2.divisionVoiceByTime({ startTime: startTime, duration: duration, srcPath: srcPath, divisionPath: divisionPath })
                                                 .then(function (rs) {
                                                 isDebug && console.log('divisionVoiceByTime rs', rs);
-                                                //change pcm
-                                                var transformPath = _this.transformPath + '\\' + fileNameExcludeSuffix + '_transform_' + index + '.pcm';
-                                                nextPath = transformPath;
-                                                return _this.transformMp3ToPcm({ divisionPath: divisionPath, transformPath: transformPath });
+                                                if (!isMp3) {
+                                                    return new Promise(function (rs, rj) { rs(1); });
+                                                }
+                                                else {
+                                                    //change pcm
+                                                    var transformPath = _this.transformPath + '\\' + fileNameExcludeSuffix + '_transform_' + index + '.pcm';
+                                                    nextPath = transformPath;
+                                                    newSuffix = 'pcm';
+                                                    return _this.transformMp3ToPcm({ divisionPath: divisionPath, transformPath: transformPath });
+                                                }
                                             }).then(function (rs) {
                                                 isDebug && console.log('transformMp3ToPcm rs', rs);
                                                 // todo 翻译
                                                 var translatePath = nextPath;
-                                                return _this.handleSingleVoice({ translatePath: translatePath });
+                                                return _this.handleSingleVoice({ translatePath: translatePath, newSuffix: newSuffix });
                                             }).catch(function (rs) {
                                                 if (rs) {
                                                     console.log('handleSingleVoice catch rs', rs);
@@ -383,16 +392,16 @@ var BaiDuOneSentenceSpeechRecongniseClient = /** @class */ (function () {
         fs.writeFileSync(translateTextPath, translateTextArr.join(os.EOL));
     };
     BaiDuOneSentenceSpeechRecongniseClient.prototype.handleSingleVoice = function (_a) {
-        var translatePath = _a.translatePath;
+        var translatePath = _a.translatePath, _b = _a.newSuffix, newSuffix = _b === void 0 ? 'pcm' : _b;
         return __awaiter(this, void 0, void 0, function () {
             var voice;
             var _this = this;
-            return __generator(this, function (_b) {
+            return __generator(this, function (_c) {
                 voice = fs.readFileSync(translatePath);
                 return [2 /*return*/, new Promise(function (resolve, rejects) {
                         if (translatePath && voice && voice.length > 0) {
                             // 识别本地文件
-                            _this.client.recognize(voice, "pcm", 16000).then(function (result) {
+                            _this.client.recognize(voice, newSuffix, 16000).then(function (result) {
                                 isDebug && console.log('handleSingleVoice recognize voice name:', translatePath, " <recognize>: " + JSON.stringify(result));
                                 resolve(result);
                             }, function (err) {
