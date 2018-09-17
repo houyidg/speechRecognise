@@ -27,6 +27,6 @@ export interface ICacheManager {
     getTodayCacheTaskPath();
     saveTranslateResultToDb(model: PhoneSessionModel);
     saveTranslateTextToFile({ fileNameExcludeSuffix, translateTextArr });
-     getAllUnTranslateList();
+    getAllUnTranslateList();
 }
 

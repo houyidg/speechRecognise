@@ -47,7 +47,6 @@ export class BaiDuOneSentenceClient implements ISpeechRecongniseClient {
     qps = 8;//api 可达最大并发度
     supportDocumentFomrat = ['mp3', 'pcm', 'wav'];
 
-
     public async getAllUnTranslateList() {
         await this.cacheManager.getAllUnTranslateList();
     }
@@ -61,7 +60,6 @@ export class BaiDuOneSentenceClient implements ISpeechRecongniseClient {
         handleTaskPath = cacheResBasePath + "\\cacheAudioPath" }) {//准备环境
         this.cacheManager = new MySqlCacheManager();
         this.cacheManager.init({ audioSrcBasePath, cacheResBasePath, handleTaskPath, divisionPath, transformPath, translateTextPath });
-
         // 新建一个对象，建议只保存一个对象调用服务接口
         this.client = new speech(BAIDU_CONFIG.APP_ID, BAIDU_CONFIG.API_KEY, BAIDU_CONFIG.SECRET_KEY);
         // 设置request库的一些参数，例如代理服务地址，超时时间等
