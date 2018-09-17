@@ -1,6 +1,6 @@
 import { FileUtils } from '../../util/FileUtils';
 import { MySqlCacheManager } from '../cache/MySqlCacheManager';
-import { AudioRecogniseModel } from '../AudioModel';
+import { PhoneSessionModel } from '../PhoneSessionModel';
 import { ICacheManager } from '../cache/ICacheManager';
 import { TimeUtils } from '../../util/TimeUtils';
 import { speech, HttpClient } from "baidu-aip-sdk";
@@ -10,12 +10,27 @@ import * as moment from 'moment';
 import { ISpeechRecongniseClient } from "../ISpeechRecongnise";
 import { exec } from "child_process";
 import { BAIDU_CONFIG } from '../../config';
-const isDebug = true;
+const isDebug = false;
 const RecongniseSpeechErrorByDivision = '-RecongniseSpeechErrorByDivision-';
 const RecongniseSpeechErrorByTransForm = '-RecongniseSpeechErrorByTransForm-';
 const RecongniseSpeechErrorByBaiduApi = '-RecongniseSpeechErrorByBaiduApi-';
 const timeout = 30 * 60 * 1000;
 const scanFileTimeByDay = 9;//每天早上10点开始轮训转换为语音
+
+// 3300	用户输入错误	输入参数不正确	请仔细核对文档及参照demo，核对输入参数
+// 3301	用户输入错误	音频质量过差	请上传清晰的音频
+// 3302	用户输入错误	鉴权失败	token字段校验失败。请使用正确的API_KEY 和 SECRET_KEY生成
+// 3303	服务端问题	语音服务器后端问题	请将api返回结果反馈至论坛或者QQ群
+// 3304	用户请求超限	用户的请求QPS超限	请降低识别api请求频率 （qps以appId计算，移动端如果共用则累计）
+// 3305	用户请求超限	用户的日pv（日请求量）超限	请“申请提高配额”，如果暂未通过，请降低日请求量
+// 3307	服务端问题	语音服务器后端识别出错问题	目前请确保16000的采样率音频时长低于30s，8000的采样率音频时长低于60s。如果仍有问题，请将api返回结果反馈至论坛或者QQ群
+// 3308	用户输入错误	音频过长	音频时长不超过60s，请将音频时长截取为60s以下
+// 3309	用户输入错误	音频数据问题	服务端无法将音频转为pcm格式，可能是长度问题，音频格式问题等。 请将输入的音频时长截取为60s以下，并核对下音频的编码，是否是8K或者16K， 16bits，单声道。
+// 3310	用户输入错误	输入的音频文件过大	语音文件共有3种输入方式： json 里的speech 参数（base64后）； 直接post 二进制数据，及callback参数里url。 分别对应三种情况：json超过10M；直接post的语音文件超过10M；callback里回调url的音频文件超过10M
+// 3311	用户输入错误	采样率rate参数不在选项里	目前rate参数仅提供8000,16000两种，填写4000即会有此错误
+// 3312	用户输入错误	音频格式format参数不在选项里	目前格式仅仅支持pcm，wav或amr，如填写mp3即会有此错误
+
+const baiduErrorCode = [3300, 3301, 3302, 3304, 3305, 3308, 3310, 3311, 3312];
 /**
  * 对mp3,pcm,wav格式音频进行翻译
  * MP3:超过一分钟时长需要分割，再转换为pcm，再通过api翻译成文字写入文件
@@ -31,6 +46,12 @@ export class BaiDuOneSentenceClient implements ISpeechRecongniseClient {
     firstScanFileTime = 60 * 1000;//60 s
     qps = 8;//api 可达最大并发度
     supportDocumentFomrat = ['mp3', 'pcm', 'wav'];
+
+
+    public async getAllUnTranslateList() {
+        await this.cacheManager.getAllUnTranslateList();
+    }
+
     public prepare({
         audioSrcBasePath = process.cwd() + "\\asset",
         cacheResBasePath = process.cwd() + "\\asset",
@@ -215,9 +236,9 @@ export class BaiDuOneSentenceClient implements ISpeechRecongniseClient {
                         // todo 翻译
                         let translatePath = nextPath;
                         return this.handleSingleVoice({ translatePath, newSuffix });
-                    }).catch((rs) => {
-                        if (rs) {
-                            console.log('handleSingleVoice catch rs', rs);
+                    }, (rj) => {
+                        if (rj) {
+                            console.log('handleSingleVoice catch rs', rj);
                             return new Promise((rs, rj) => {
                                 rs(rs);
                             });
@@ -227,8 +248,12 @@ export class BaiDuOneSentenceClient implements ISpeechRecongniseClient {
                 if (result && result[0]) {
                     translateTextArr.push(result[0]);
                 } else {
-                    translateTextArr.push(RecongniseSpeechErrorByBaiduApi);
-                    apiError.push({ fileName: fileNameExcludeSuffix + '.' + suffix, rs: rs });
+                    let { err_no } = rs;
+                    if (err_no && baiduErrorCode.indexOf(err_no) > -1) {//音频质量差,不用重试
+                    } else {
+                        translateTextArr.push(RecongniseSpeechErrorByBaiduApi);
+                    }
+                    apiError.push({ fileName: fileNameExcludeSuffix + '.' + suffix, nextPath: nextPath, rs: rs });
                 }
             }
             if (translateTextArr.indexOf(RecongniseSpeechErrorByBaiduApi) > -1) {
@@ -236,7 +261,7 @@ export class BaiDuOneSentenceClient implements ISpeechRecongniseClient {
             }
             isDebug && console.log('saveTranslateTextToFile rsList', translateTextArr.join());
             //存储到数据库
-            let model: AudioRecogniseModel = new AudioRecogniseModel();
+            let model: PhoneSessionModel = new PhoneSessionModel();
             model.buildModel({ fileNameExcludeSuffix, translateTextArr })
             this.cacheManager.saveTranslateResultToDb(model);
             // //存储到文件
@@ -248,7 +273,7 @@ export class BaiDuOneSentenceClient implements ISpeechRecongniseClient {
         }
         return new Promise((rs, rj) => {
             if (rsCode == 1) {
-                rs({ rsCode: rsCode });
+                rs({ rsCode: rsCode, apiError: apiError });
             } else {
                 rj({ rsCode: rsCode, apiError: apiError });
             }

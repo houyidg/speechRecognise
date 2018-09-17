@@ -1,6 +1,5 @@
+import { PhoneSessionModel } from './../PhoneSessionModel';
 import { FileUtils } from './../../util/FileUtils';
-import { AudioRecogniseModel } from './../AudioModel';
-
 import { ICacheManager } from './ICacheManager';
 import * as fs from "fs";
 import * as os from "os";
@@ -132,7 +131,7 @@ export class DefaultCacheManager implements ICacheManager {
         FileUtils.rmdirOnlyDir(this.cacheResBasePath);
     }
 
-    public saveTranslateResultToDb(model: AudioRecogniseModel) {
+    public saveTranslateResultToDb(model: PhoneSessionModel) {
 
     }
 
@@ -141,5 +140,9 @@ export class DefaultCacheManager implements ICacheManager {
         !fs.existsSync(translateTextPath) && fs.mkdirSync(translateTextPath);
         translateTextPath += '\\' + fileNameExcludeSuffix + '.txt';
         fs.writeFileSync(translateTextPath, translateTextArr.join(os.EOL));
+    }
+
+    public getAllUnTranslateList(){
+        return null;
     }
 }

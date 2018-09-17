@@ -121,6 +121,9 @@ var DefaultCacheManager = /** @class */ (function () {
         translateTextPath += '\\' + fileNameExcludeSuffix + '.txt';
         fs.writeFileSync(translateTextPath, translateTextArr.join(os.EOL));
     };
+    DefaultCacheManager.prototype.getAllUnTranslateList = function () {
+        return null;
+    };
     return DefaultCacheManager;
 }());
 exports.DefaultCacheManager = DefaultCacheManager;

@@ -1,4 +1,4 @@
-import { AudioRecogniseModel } from './../AudioModel';
+import { PhoneSessionModel } from '../PhoneSessionModel';
 /**
     缓存组件
     *  这次执行任务时保存以及缓存所有路径
@@ -25,7 +25,8 @@ export interface ICacheManager {
     getRetryTaskPathsByToday(): string[];
     removeAllTaskCacheData();
     getTodayCacheTaskPath();
-    saveTranslateResultToDb(model: AudioRecogniseModel);
+    saveTranslateResultToDb(model: PhoneSessionModel);
     saveTranslateTextToFile({ fileNameExcludeSuffix, translateTextArr });
+     getAllUnTranslateList();
 }
 

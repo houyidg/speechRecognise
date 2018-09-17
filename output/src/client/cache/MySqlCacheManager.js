@@ -25,29 +25,31 @@ var MySqlCacheManager = /** @class */ (function (_super) {
             host: 'localhost',
             user: 'root',
             password: 'root',
-            database: 'speech_recognise_result'
+            database: 'call_center_data'
         });
     };
     MySqlCacheManager.prototype.saveTranslateResultToDb = function (model) {
-        var _this = this;
         _super.prototype.saveTranslateResultToDb.call(this, model);
-        var searchSql = 'SELECT audioId FROM audiorecognisemodel WHERE audioId=?';
-        this.connection.query(searchSql, [model.audioId], function (err, result) {
+        var sql = 'UPDATE call_history SET call_content_baidu=? WHERE id = ?';
+        var params = [model.call_content_baidu, model.id];
+        this.connection.query(sql, params, function (err, result) {
             if (err) {
-                console.log('MySqlCacheManager [SELECT ERROR] - ', err.message);
+                console.log('MySqlCacheManager [INSERT ERROR] - ', err.message);
                 return;
             }
-            var sql = 'INSERT INTO audiorecognisemodel(audioId,recordDate,translateDate,content,employeeNo,clientPhone) VALUES(?,?,?,?,?,?)';
-            var params = [model.audioId, model.recordDate, model.translateDate, model.content, model.employeeNo, model.clientPhone];
-            if (result && result[0] && result[0].audioId && result[0].audioId == model.audioId) {
-                sql = 'UPDATE audiorecognisemodel SET recordDate=?,translateDate=?,content=?,employeeNo=?,clientPhone=? WHERE audioId = ?';
-                params = [model.recordDate, model.translateDate, model.content, model.employeeNo, model.clientPhone, model.audioId];
-            }
-            _this.connection.query(sql, params, function (err, result) {
+        });
+    };
+    MySqlCacheManager.prototype.getAllUnTranslateList = function () {
+        var _this = this;
+        return new Promise(function (rs, rj) {
+            var searchSql = 'SELECT id FROM call_history ORDER BY create_time';
+            _this.connection.query(searchSql, [], function (err, result) {
                 if (err) {
-                    console.log('MySqlCacheManager [INSERT ERROR] - ', err.message);
+                    console.log('MySqlCacheManager [SELECT ERROR] - ', err.message);
                     return;
                 }
+                console.log('MySqlCacheManager  getAllUnTranslateList result  ', result);
+                rs(result);
             });
         });
     };
