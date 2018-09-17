@@ -41,15 +41,9 @@ const baiduErrorCode = [3300, 3301, 3302, 3304, 3305, 3308, 3310, 3311, 3312];
 export class BaiDuOneSentenceClient implements ISpeechRecongniseClient {
     client: speech;
     cacheManager: ICacheManager;
-    scanCount = 0;
     scanFileTimeInterval = 60 * 1000;//60 s
     firstScanFileTime = 60 * 1000;//60 s
     qps = 8;//api 可达最大并发度
-    supportDocumentFomrat = ['mp3', 'pcm', 'wav'];
-
-    public async getAllUnTranslateList() {
-        await this.cacheManager.getAllUnTranslateList();
-    }
 
     public prepare({
         audioSrcBasePath = process.cwd() + "\\asset",
@@ -105,44 +99,25 @@ export class BaiDuOneSentenceClient implements ISpeechRecongniseClient {
     }
 
     private async handle() {
-        this.scanCount++;
-        let scanFiles = fs.readdirSync(this.cacheManager.getAudioSrcBasePath());
-        console.log('start  自动过滤非音频文件、已经解析的文件  this.scanCount:', this.scanCount);
-        let meetFiles: string[] = scanFiles.filter((fileName) => {
-            let absolutePath = `${this.cacheManager.getAudioSrcBasePath()}\\${fileName}`;
-            let stat = fs.lstatSync(absolutePath)
-            if (!stat.isFile()) {
-                console.log('filter ', fileName, '  !stat.isFile():', !stat.isFile());
-                return false;
-            }
-            let isHandle = this.cacheManager.saveTaskPath(fileName);
-            if (isHandle) {
-                console.log('filter ', fileName, '  isHandle:', isHandle);
-                return false;
-            }
-            let suffix = fileName.substring(fileName.lastIndexOf('.') + 1, fileName.length);
-            if (this.supportDocumentFomrat.indexOf(suffix) < 0) {
-                console.log('filter ', fileName, '  只支持mp3和1分钟时长的pcm和wav格式音频');
-                return false;
-            }
-            return true;
-        });
+        let meetModels: PhoneSessionModel[];
+        let retryModels: PhoneSessionModel[] = [];
         let startTime = new Date().getTime() / 1000;
-        console.log('--------------------------------start all Task  总共需要执行的任务:', meetFiles.length, ' \n:', meetFiles);
-        while (meetFiles.length > 0) {
+        while ((meetModels = await this.cacheManager.getNeedHandleFiles()).length > 0 || retryModels.length > 0) {
+            meetModels.splice(meetModels.length, 0, ...retryModels);
+            console.log('--------------------------------start all Task  总共需要执行的任务:', meetModels.length, ' 包含重试的任务:', retryModels.length, ' \n:', meetModels);
             console.log('\n\r');
-            let maxConcurrence = Math.min(this.qps, meetFiles.length);
-            let needHandleTasks = meetFiles.splice(0, maxConcurrence);
-            console.log('start 并发执行的任务:', needHandleTasks.length, ' \n:', needHandleTasks);
+            retryModels = [];
+            let needHandleTasks = meetModels.splice(0, Math.min(this.qps, meetModels.length));
+            console.log('start 建立并发通道数:', needHandleTasks.length);
             let taskPromiseArr = [];
             for (let index = 0, len = needHandleTasks.length; index < len; index++) {
-                let fileName = needHandleTasks[index];
-                let rs = this.assembleTask(fileName, () => {
+                let needModel = needHandleTasks[index];
+                let rs = this.assembleTask(needModel, () => {
                     //拿取剩余的任务执行
-                    let nextTask = meetFiles.pop();
-                    if (nextTask) {
-                        console.log('--------------------------------拿取下一个任务：', nextTask, '   等待执行的任务: ', meetFiles.length);
-                        return this.assembleTask(nextTask, undefined);
+                    let nextModel = meetModels.pop();
+                    if (nextModel) {
+                        console.log('--------------------------------拿取下一个任务：', nextModel, '   等待执行的任务: ', meetModels.length);
+                        return this.assembleTask(nextModel, undefined);
                     } else {
                         console.log('--------------------------------并发通道 ', index, ' 执行完毕，等待其他通道！');
                     }
@@ -152,26 +127,22 @@ export class BaiDuOneSentenceClient implements ISpeechRecongniseClient {
             let startTime = new Date().getTime() / 1000;
             await Promise.all(taskPromiseArr)
                 .then((rs) => {
-                    let endTime = new Date().getTime() / 1000;
-                    console.log('----------------Promise.all cost time: ', (endTime - startTime).toFixed(0), '秒 rs:', JSON.stringify(rs));
+                    console.log('----------------Promise.all cost time: ', (new Date().getTime() / 1000 - startTime).toFixed(0), '秒 rs:', JSON.stringify(rs));
                 }, (e) => {
-                    let endTime = new Date().getTime() / 1000;
-                    console.log('----------------Promise.all catch  time: ', (endTime - startTime).toFixed(0), '秒 rs:', JSON.stringify(e));
+                    console.log('----------------Promise.all catch  time: ', (new Date().getTime() / 1000 - startTime).toFixed(0), '秒 rs:', JSON.stringify(e));
                 });
             //continue get fail task
-            let retryFileNameTask: string[] = this.cacheManager.getRetryTaskPathsByToday();
-            console.log('--------------------------------需要重新处理的任务:', retryFileNameTask.length, '\n:', retryFileNameTask);
-            meetFiles.splice(meetFiles.length, 0, ...retryFileNameTask);
+            retryModels = this.cacheManager.getRetryModelsByToday();
+            this.cacheManager.removeAllTaskCacheByOneLoop();
         }
-        let endTime = new Date().getTime() / 1000;
-        console.log('--------------------------------end all Task cost time:', (endTime - startTime).toFixed(0), '秒');
+        this.cacheManager.removeAllTaskCacheByAtTime();
+        console.log('-----------------------------------------end all Task cost time:', (new Date().getTime() / 1000 - startTime).toFixed(0), '秒');
         console.log('\n\r');
-        //clear cache
-        this.cacheManager.removeAllTaskCacheData();
     }
-
-    assembleTask(fileName, nextTaskCallback) {
+    //nextModel
+    assembleTask(sessionModel: PhoneSessionModel, nextTaskCallback) {
         let startTime = new Date().getTime() / 1000;
+        let fileName = sessionModel.fileName;
         let absolutePath = `${this.cacheManager.getAudioSrcBasePath()}\\${fileName}`;
         let suffix = fileName.substring(fileName.lastIndexOf('.') + 1, fileName.length);
         let fileNameExcludeSuffix = fileName.replace(suffix, '').replace('.', '');
@@ -179,8 +150,7 @@ export class BaiDuOneSentenceClient implements ISpeechRecongniseClient {
         let isMp3 = fileName.toLowerCase().indexOf('mp3') > -1;
         console.log('----------------start task  fileName：', fileName, ' suffix:', suffix, '  audio.length:', this.getAudioLen(audioData), ' ----------------');
         //real do 
-        return this.startHandleSingleVoice({ absolutePath, fileNameExcludeSuffix, suffix, isMp3 }).then((rs) => {
-            this.cacheManager.removeLastTaskPathOnlyCache(fileName);
+        return this.startHandleSingleVoice({ sessionModel, absolutePath, fileNameExcludeSuffix, suffix, isMp3 }).then((rs) => {
             this.cacheManager.removeFailTaskPath(fileName);
             let endTime = new Date().getTime() / 1000;
             console.log('----------------end task fileName：', fileName, ' cost time: ', (endTime - startTime).toFixed(0), '秒 startHandleSingleVoice rs：', JSON.stringify(rs), ' ----------------');
@@ -188,8 +158,6 @@ export class BaiDuOneSentenceClient implements ISpeechRecongniseClient {
             if (nextTaskCallback)
                 return nextTaskCallback();
         }, (e) => {
-            this.cacheManager.removeLastTaskPathOnlyCache(fileName);
-            this.cacheManager.removeLastTaskPathOnlyFile(fileName);
             this.cacheManager.saveFailTaskPath(fileName);
             let endTime = new Date().getTime() / 1000;
             console.log('----------------end task catch fileName：', fileName, '  cost time: ', (endTime - startTime).toFixed(0), '秒 startHandleSingleVoice error：', JSON.stringify(e), ' ----------------');
@@ -198,7 +166,7 @@ export class BaiDuOneSentenceClient implements ISpeechRecongniseClient {
         });
     }
 
-    async  startHandleSingleVoice({ absolutePath, fileNameExcludeSuffix, suffix, isMp3 }) {
+    async  startHandleSingleVoice({ sessionModel, absolutePath, fileNameExcludeSuffix, suffix, isMp3 }) {
         let rsCode = 1;//1 ok ,2 gettime fail ,3 api fail,4 
         let apiError = [];
         let newSuffix = suffix;
@@ -257,13 +225,9 @@ export class BaiDuOneSentenceClient implements ISpeechRecongniseClient {
             if (translateTextArr.indexOf(RecongniseSpeechErrorByBaiduApi) > -1) {
                 rsCode = 3;
             }
-            isDebug && console.log('saveTranslateTextToFile rsList', translateTextArr.join());
             //存储到数据库
-            let model: PhoneSessionModel = new PhoneSessionModel();
-            model.buildModel({ fileNameExcludeSuffix, translateTextArr })
-            this.cacheManager.saveTranslateResultToDb(model);
             // //存储到文件
-            this.cacheManager.saveTranslateTextToFile({ fileNameExcludeSuffix, translateTextArr });
+            await this.cacheManager.saveTranslateText(sessionModel, fileNameExcludeSuffix, translateTextArr);
         } else {
             //转换分割音频时间段异常
             rsCode = 2;

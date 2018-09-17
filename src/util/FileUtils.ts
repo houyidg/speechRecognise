@@ -3,13 +3,17 @@ const fs = require('fs')
 const path = require('path')
 export class FileUtils {
 
-    public static rmdirOnlyDir(dir) {
+    public static rmdirOnlyFile(dir, excludeDir) {
         console.log('--------------------------------rmdirOnlyDir :', dir);
         let arr = [dir]
         let current = null
         let index = 0
         while (current = arr[index++]) {
             // 读取当前文件，并做一个判断，文件目录分别处理
+            if (current == excludeDir) {
+                continue;
+            }
+
             let stat = fs.statSync(current)
             //如果文件是目录
             if (stat.isDirectory()) {

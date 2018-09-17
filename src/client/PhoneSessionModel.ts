@@ -1,11 +1,12 @@
 import { TimeUtils } from '../util/TimeUtils';
 export class PhoneSessionModel {
-    public id: string;
+    public id: number = 1;
     public call_content_baidu: string;
-
+    public fileName: string;
     //20161020145043_1006_15902875896
-    public buildModel({ fileNameExcludeSuffix, translateTextArr }) {
-        this.id = fileNameExcludeSuffix;
+    public buildModel({ id = 1, translateTextArr = [], fileName = "" }) {
+        this.id = id;
+        this.fileName = fileName;
         this.call_content_baidu = translateTextArr.join();
         return this;
     }

@@ -12,21 +12,21 @@ export interface ICacheManager {
     getDivisionPath();
     getTransformPath();
     getTranslateTextPath();
+    getNeedHandleFiles();
     init({ audioSrcBasePath, cacheResBasePath, handleTaskPath, divisionPath, transformPath, translateTextPath })
     /**
      * @param path 
      * return true 代表已经在处理或者处理完成， false 
      */
-    saveTaskPath(path: string): boolean;
+    isSaveTaskPath(path: string): boolean;
     saveFailTaskPath(path: string);
     removeLastTaskPathOnlyCache(path: string);
     removeLastTaskPathOnlyFile(path: string);
     removeFailTaskPath(path: string);
-    getRetryTaskPathsByToday(): string[];
-    removeAllTaskCacheData();
+    getRetryModelsByToday(): PhoneSessionModel[];
+    removeAllTaskCacheByOneLoop();//remove 这次loop
+    removeAllTaskCacheByAtTime();//remove 这次调度(多次loop)
     getTodayCacheTaskPath();
-    saveTranslateResultToDb(model: PhoneSessionModel);
-    saveTranslateTextToFile({ fileNameExcludeSuffix, translateTextArr });
-    getAllUnTranslateList();
+    saveTranslateText(sessionModel: PhoneSessionModel, fileNameExcludeSuffix, translateTextArr: string[]);
 }
 

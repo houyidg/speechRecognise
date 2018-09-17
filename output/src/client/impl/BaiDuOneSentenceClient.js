@@ -36,7 +36,6 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 var MySqlCacheManager_1 = require("../cache/MySqlCacheManager");
-var PhoneSessionModel_1 = require("../PhoneSessionModel");
 var TimeUtils_1 = require("../../util/TimeUtils");
 var baidu_aip_sdk_1 = require("baidu-aip-sdk");
 var fs = require("fs");
@@ -71,24 +70,10 @@ var baiduErrorCode = [3300, 3301, 3302, 3304, 3305, 3308, 3310, 3311, 3312];
  */
 var BaiDuOneSentenceClient = /** @class */ (function () {
     function BaiDuOneSentenceClient() {
-        this.scanCount = 0;
         this.scanFileTimeInterval = 60 * 1000; //60 s
         this.firstScanFileTime = 60 * 1000; //60 s
         this.qps = 8; //api 可达最大并发度
-        this.supportDocumentFomrat = ['mp3', 'pcm', 'wav'];
     }
-    BaiDuOneSentenceClient.prototype.getAllUnTranslateList = function () {
-        return __awaiter(this, void 0, void 0, function () {
-            return __generator(this, function (_a) {
-                switch (_a.label) {
-                    case 0: return [4 /*yield*/, this.cacheManager.getAllUnTranslateList()];
-                    case 1:
-                        _a.sent();
-                        return [2 /*return*/];
-                }
-            });
-        });
-    };
     BaiDuOneSentenceClient.prototype.prepare = function (_a) {
         var _b = _a.audioSrcBasePath, audioSrcBasePath = _b === void 0 ? process.cwd() + "\\asset" : _b, _c = _a.cacheResBasePath, cacheResBasePath = _c === void 0 ? process.cwd() + "\\asset" : _c, _d = _a.divisionPath, divisionPath = _d === void 0 ? cacheResBasePath + "\\divisionCache" : _d, _e = _a.transformPath, transformPath = _e === void 0 ? cacheResBasePath + "\\transformCache" : _e, _f = _a.translateTextPath, translateTextPath = _f === void 0 ? process.cwd() + "\\translateTexts" : _f, _g = _a.handleTaskPath, handleTaskPath = _g === void 0 ? cacheResBasePath + "\\cacheAudioPath" : _g;
         this.cacheManager = new MySqlCacheManager_1.MySqlCacheManager();
@@ -142,53 +127,33 @@ var BaiDuOneSentenceClient = /** @class */ (function () {
     };
     BaiDuOneSentenceClient.prototype.handle = function () {
         return __awaiter(this, void 0, void 0, function () {
-            var scanFiles, meetFiles, startTime, _loop_1, this_1, endTime;
+            var meetModels, retryModels, startTime, _loop_1, this_1;
             var _this = this;
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
-                        this.scanCount++;
-                        scanFiles = fs.readdirSync(this.cacheManager.getAudioSrcBasePath());
-                        console.log('start  自动过滤非音频文件、已经解析的文件  this.scanCount:', this.scanCount);
-                        meetFiles = scanFiles.filter(function (fileName) {
-                            var absolutePath = _this.cacheManager.getAudioSrcBasePath() + "\\" + fileName;
-                            var stat = fs.lstatSync(absolutePath);
-                            if (!stat.isFile()) {
-                                console.log('filter ', fileName, '  !stat.isFile():', !stat.isFile());
-                                return false;
-                            }
-                            var isHandle = _this.cacheManager.saveTaskPath(fileName);
-                            if (isHandle) {
-                                console.log('filter ', fileName, '  isHandle:', isHandle);
-                                return false;
-                            }
-                            var suffix = fileName.substring(fileName.lastIndexOf('.') + 1, fileName.length);
-                            if (_this.supportDocumentFomrat.indexOf(suffix) < 0) {
-                                console.log('filter ', fileName, '  只支持mp3和1分钟时长的pcm和wav格式音频');
-                                return false;
-                            }
-                            return true;
-                        });
+                        retryModels = [];
                         startTime = new Date().getTime() / 1000;
-                        console.log('--------------------------------start all Task  总共需要执行的任务:', meetFiles.length, ' \n:', meetFiles);
                         _loop_1 = function () {
-                            var maxConcurrence, needHandleTasks, taskPromiseArr, _loop_2, index, len, startTime_1, retryFileNameTask;
+                            var needHandleTasks, taskPromiseArr, _loop_2, index, len, startTime_1;
                             return __generator(this, function (_a) {
                                 switch (_a.label) {
                                     case 0:
+                                        meetModels.splice.apply(meetModels, [meetModels.length, 0].concat(retryModels));
+                                        console.log('--------------------------------start all Task  总共需要执行的任务:', meetModels.length, ' 包含重试的任务:', retryModels.length, ' \n:', meetModels);
                                         console.log('\n\r');
-                                        maxConcurrence = Math.min(this_1.qps, meetFiles.length);
-                                        needHandleTasks = meetFiles.splice(0, maxConcurrence);
-                                        console.log('start 并发执行的任务:', needHandleTasks.length, ' \n:', needHandleTasks);
+                                        retryModels = [];
+                                        needHandleTasks = meetModels.splice(0, Math.min(this_1.qps, meetModels.length));
+                                        console.log('start 建立并发通道数:', needHandleTasks.length);
                                         taskPromiseArr = [];
                                         _loop_2 = function (index, len) {
-                                            var fileName = needHandleTasks[index];
-                                            var rs = this_1.assembleTask(fileName, function () {
+                                            var needModel = needHandleTasks[index];
+                                            var rs = this_1.assembleTask(needModel, function () {
                                                 //拿取剩余的任务执行
-                                                var nextTask = meetFiles.pop();
-                                                if (nextTask) {
-                                                    console.log('--------------------------------拿取下一个任务：', nextTask, '   等待执行的任务: ', meetFiles.length);
-                                                    return _this.assembleTask(nextTask, undefined);
+                                                var nextModel = meetModels.pop();
+                                                if (nextModel) {
+                                                    console.log('--------------------------------拿取下一个任务：', nextModel, '   等待执行的任务: ', meetModels.length);
+                                                    return _this.assembleTask(nextModel, undefined);
                                                 }
                                                 else {
                                                     console.log('--------------------------------并发通道 ', index, ' 执行完毕，等待其他通道！');
@@ -202,43 +167,42 @@ var BaiDuOneSentenceClient = /** @class */ (function () {
                                         startTime_1 = new Date().getTime() / 1000;
                                         return [4 /*yield*/, Promise.all(taskPromiseArr)
                                                 .then(function (rs) {
-                                                var endTime = new Date().getTime() / 1000;
-                                                console.log('----------------Promise.all cost time: ', (endTime - startTime_1).toFixed(0), '秒 rs:', JSON.stringify(rs));
+                                                console.log('----------------Promise.all cost time: ', (new Date().getTime() / 1000 - startTime_1).toFixed(0), '秒 rs:', JSON.stringify(rs));
                                             }, function (e) {
-                                                var endTime = new Date().getTime() / 1000;
-                                                console.log('----------------Promise.all catch  time: ', (endTime - startTime_1).toFixed(0), '秒 rs:', JSON.stringify(e));
+                                                console.log('----------------Promise.all catch  time: ', (new Date().getTime() / 1000 - startTime_1).toFixed(0), '秒 rs:', JSON.stringify(e));
                                             })];
                                     case 1:
                                         _a.sent();
-                                        retryFileNameTask = this_1.cacheManager.getRetryTaskPathsByToday();
-                                        console.log('--------------------------------需要重新处理的任务:', retryFileNameTask.length, '\n:', retryFileNameTask);
-                                        meetFiles.splice.apply(meetFiles, [meetFiles.length, 0].concat(retryFileNameTask));
+                                        //continue get fail task
+                                        retryModels = this_1.cacheManager.getRetryModelsByToday();
+                                        this_1.cacheManager.removeAllTaskCacheByOneLoop();
                                         return [2 /*return*/];
                                 }
                             });
                         };
                         this_1 = this;
                         _a.label = 1;
-                    case 1:
-                        if (!(meetFiles.length > 0)) return [3 /*break*/, 3];
-                        return [5 /*yield**/, _loop_1()];
+                    case 1: return [4 /*yield*/, this.cacheManager.getNeedHandleFiles()];
                     case 2:
+                        if (!((meetModels = _a.sent()).length > 0 || retryModels.length > 0)) return [3 /*break*/, 4];
+                        return [5 /*yield**/, _loop_1()];
+                    case 3:
                         _a.sent();
                         return [3 /*break*/, 1];
-                    case 3:
-                        endTime = new Date().getTime() / 1000;
-                        console.log('--------------------------------end all Task cost time:', (endTime - startTime).toFixed(0), '秒');
+                    case 4:
+                        this.cacheManager.removeAllTaskCacheByAtTime();
+                        console.log('-----------------------------------------end all Task cost time:', (new Date().getTime() / 1000 - startTime).toFixed(0), '秒');
                         console.log('\n\r');
-                        //clear cache
-                        this.cacheManager.removeAllTaskCacheData();
                         return [2 /*return*/];
                 }
             });
         });
     };
-    BaiDuOneSentenceClient.prototype.assembleTask = function (fileName, nextTaskCallback) {
+    //nextModel
+    BaiDuOneSentenceClient.prototype.assembleTask = function (sessionModel, nextTaskCallback) {
         var _this = this;
         var startTime = new Date().getTime() / 1000;
+        var fileName = sessionModel.fileName;
         var absolutePath = this.cacheManager.getAudioSrcBasePath() + "\\" + fileName;
         var suffix = fileName.substring(fileName.lastIndexOf('.') + 1, fileName.length);
         var fileNameExcludeSuffix = fileName.replace(suffix, '').replace('.', '');
@@ -246,8 +210,7 @@ var BaiDuOneSentenceClient = /** @class */ (function () {
         var isMp3 = fileName.toLowerCase().indexOf('mp3') > -1;
         console.log('----------------start task  fileName：', fileName, ' suffix:', suffix, '  audio.length:', this.getAudioLen(audioData), ' ----------------');
         //real do 
-        return this.startHandleSingleVoice({ absolutePath: absolutePath, fileNameExcludeSuffix: fileNameExcludeSuffix, suffix: suffix, isMp3: isMp3 }).then(function (rs) {
-            _this.cacheManager.removeLastTaskPathOnlyCache(fileName);
+        return this.startHandleSingleVoice({ sessionModel: sessionModel, absolutePath: absolutePath, fileNameExcludeSuffix: fileNameExcludeSuffix, suffix: suffix, isMp3: isMp3 }).then(function (rs) {
             _this.cacheManager.removeFailTaskPath(fileName);
             var endTime = new Date().getTime() / 1000;
             console.log('----------------end task fileName：', fileName, ' cost time: ', (endTime - startTime).toFixed(0), '秒 startHandleSingleVoice rs：', JSON.stringify(rs), ' ----------------');
@@ -255,8 +218,6 @@ var BaiDuOneSentenceClient = /** @class */ (function () {
             if (nextTaskCallback)
                 return nextTaskCallback();
         }, function (e) {
-            _this.cacheManager.removeLastTaskPathOnlyCache(fileName);
-            _this.cacheManager.removeLastTaskPathOnlyFile(fileName);
             _this.cacheManager.saveFailTaskPath(fileName);
             var endTime = new Date().getTime() / 1000;
             console.log('----------------end task catch fileName：', fileName, '  cost time: ', (endTime - startTime).toFixed(0), '秒 startHandleSingleVoice error：', JSON.stringify(e), ' ----------------');
@@ -265,9 +226,9 @@ var BaiDuOneSentenceClient = /** @class */ (function () {
         });
     };
     BaiDuOneSentenceClient.prototype.startHandleSingleVoice = function (_a) {
-        var absolutePath = _a.absolutePath, fileNameExcludeSuffix = _a.fileNameExcludeSuffix, suffix = _a.suffix, isMp3 = _a.isMp3;
+        var sessionModel = _a.sessionModel, absolutePath = _a.absolutePath, fileNameExcludeSuffix = _a.fileNameExcludeSuffix, suffix = _a.suffix, isMp3 = _a.isMp3;
         return __awaiter(this, void 0, void 0, function () {
-            var rsCode, apiError, newSuffix, rs, timeQuanTum, translateTextArr, _loop_3, this_2, index, len, model;
+            var rsCode, apiError, newSuffix, rs, timeQuanTum, translateTextArr, _loop_3, this_2, index, len;
             var _this = this;
             return __generator(this, function (_b) {
                 switch (_b.label) {
@@ -280,7 +241,7 @@ var BaiDuOneSentenceClient = /** @class */ (function () {
                         rs = _b.sent();
                         isDebug && console.log('playTime:', rs);
                         timeQuanTum = TimeUtils_1.TimeUtils.getSecondByTimeOffset(rs.playTime);
-                        if (!(timeQuanTum.length > 1)) return [3 /*break*/, 6];
+                        if (!(timeQuanTum.length > 1)) return [3 /*break*/, 7];
                         translateTextArr = [];
                         apiError = [];
                         _loop_3 = function (index, len) {
@@ -355,19 +316,20 @@ var BaiDuOneSentenceClient = /** @class */ (function () {
                         if (translateTextArr.indexOf(RecongniseSpeechErrorByBaiduApi) > -1) {
                             rsCode = 3;
                         }
-                        isDebug && console.log('saveTranslateTextToFile rsList', translateTextArr.join());
-                        model = new PhoneSessionModel_1.PhoneSessionModel();
-                        model.buildModel({ fileNameExcludeSuffix: fileNameExcludeSuffix, translateTextArr: translateTextArr });
-                        this.cacheManager.saveTranslateResultToDb(model);
+                        //存储到数据库
                         // //存储到文件
-                        this.cacheManager.saveTranslateTextToFile({ fileNameExcludeSuffix: fileNameExcludeSuffix, translateTextArr: translateTextArr });
-                        return [3 /*break*/, 7];
+                        return [4 /*yield*/, this.cacheManager.saveTranslateText(sessionModel, fileNameExcludeSuffix, translateTextArr)];
                     case 6:
+                        //存储到数据库
+                        // //存储到文件
+                        _b.sent();
+                        return [3 /*break*/, 8];
+                    case 7:
                         //转换分割音频时间段异常
                         rsCode = 2;
                         isDebug && console.log('timeQuanTum 转换分割音频时间段异常', timeQuanTum);
-                        _b.label = 7;
-                    case 7: return [2 /*return*/, new Promise(function (rs, rj) {
+                        _b.label = 8;
+                    case 8: return [2 /*return*/, new Promise(function (rs, rj) {
                             if (rsCode == 1) {
                                 rs({ rsCode: rsCode, apiError: apiError });
                             }

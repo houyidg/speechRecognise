@@ -2,11 +2,13 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 var PhoneSessionModel = /** @class */ (function () {
     function PhoneSessionModel() {
+        this.id = 1;
     }
     //20161020145043_1006_15902875896
     PhoneSessionModel.prototype.buildModel = function (_a) {
-        var fileNameExcludeSuffix = _a.fileNameExcludeSuffix, translateTextArr = _a.translateTextArr;
-        this.id = fileNameExcludeSuffix;
+        var _b = _a.id, id = _b === void 0 ? 1 : _b, _c = _a.translateTextArr, translateTextArr = _c === void 0 ? [] : _c, _d = _a.fileName, fileName = _d === void 0 ? "" : _d;
+        this.id = id;
+        this.fileName = fileName;
         this.call_content_baidu = translateTextArr.join();
         return this;
     };

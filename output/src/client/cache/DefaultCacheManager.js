@@ -1,20 +1,24 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+var PhoneSessionModel_1 = require("./../PhoneSessionModel");
 var FileUtils_1 = require("./../../util/FileUtils");
 var fs = require("fs");
 var os = require("os");
 var TimeUtils_1 = require("../../util/TimeUtils");
+var isDebug = false;
 var DefaultCacheManager = /** @class */ (function () {
     function DefaultCacheManager() {
         this.retryCount = 1;
+        this.scanCount = 0;
+        this.supportDocumentFomrat = ['mp3', 'pcm', 'wav'];
     }
     DefaultCacheManager.prototype.init = function (_a) {
         var audioSrcBasePath = _a.audioSrcBasePath, cacheResBasePath = _a.cacheResBasePath, handleTaskPath = _a.handleTaskPath, divisionPath = _a.divisionPath, transformPath = _a.transformPath, translateTextPath = _a.translateTextPath;
-        this.lastHandleAudioPaths = new Set();
-        this.failHandleAudioPathMap = new Map();
+        this.lastHandleFileNames = new Set();
+        this.failHandleFileNameMap = new Map();
         this.audioSrcBasePath = audioSrcBasePath;
         this.cacheResBasePath = cacheResBasePath;
-        this.handleTaskPath = handleTaskPath;
+        this.handleTaskListPath = handleTaskPath;
         this.divisionPath = divisionPath;
         this.transformPath = transformPath;
         this.translateTextPath = translateTextPath;
@@ -24,15 +28,49 @@ var DefaultCacheManager = /** @class */ (function () {
         !fs.existsSync(divisionPath) && fs.mkdirSync(divisionPath);
         !fs.existsSync(transformPath) && fs.mkdirSync(transformPath);
         !fs.existsSync(translateTextPath) && fs.mkdirSync(translateTextPath);
-        console.log('DefaultCacheManager audioSrcBasePath ', audioSrcBasePath);
-        console.log('DefaultCacheManager cacheResBasePath ', cacheResBasePath);
-        console.log('DefaultCacheManager handleTaskPath ', handleTaskPath);
-        console.log('DefaultCacheManager divisionPath', divisionPath);
-        console.log('DefaultCacheManager transformPath', transformPath);
-        console.log('DefaultCacheManager translateTextPath', translateTextPath);
+        isDebug && console.log('DefaultCacheManager audioSrcBasePath ', audioSrcBasePath);
+        isDebug && console.log('DefaultCacheManager cacheResBasePath ', cacheResBasePath);
+        isDebug && console.log('DefaultCacheManager handleTaskPath ', handleTaskPath);
+        isDebug && console.log('DefaultCacheManager divisionPath', divisionPath);
+        isDebug && console.log('DefaultCacheManager transformPath', transformPath);
+        isDebug && console.log('DefaultCacheManager translateTextPath', translateTextPath);
+    };
+    DefaultCacheManager.prototype.getNeedHandleFiles = function () {
+        var _this = this;
+        this.scanCount++;
+        var scanFiles = fs.readdirSync(this.getAudioSrcBasePath());
+        console.log('DefaultCacheManager 开始扫描指定目录下的文件,自动过滤非音频文件、已经解析的文件 扫描次数:', this.scanCount);
+        var meetFiles = scanFiles.filter(function (fileName) {
+            if (_this.lastHandleFileNames.has(fileName)) {
+                return false;
+            }
+            var absolutePath = _this.getAudioSrcBasePath() + "\\" + fileName;
+            var stat = fs.lstatSync(absolutePath);
+            if (!stat.isFile()) {
+                isDebug && console.log('filter ', fileName, '  !stat.isFile():', !stat.isFile());
+                return false;
+            }
+            var isHandle = _this.isSaveTaskPath(fileName);
+            if (isHandle) {
+                isDebug && console.log('filter ', fileName, '  isHandle:', isHandle);
+                return false;
+            }
+            var suffix = fileName.substring(fileName.lastIndexOf('.') + 1, fileName.length);
+            if (_this.supportDocumentFomrat.indexOf(suffix) < 0) {
+                isDebug && console.log('filter ', fileName, '  只支持mp3和1分钟时长的pcm和wav格式音频');
+                return false;
+            }
+            return true;
+        });
+        var newMeetModels = meetFiles.map(function (fileName, index, files) {
+            var model = new PhoneSessionModel_1.PhoneSessionModel();
+            model.buildModel({ fileName: fileName });
+            return model;
+        });
+        return newMeetModels;
     };
     DefaultCacheManager.prototype.getTodayCacheTaskPath = function () {
-        return this.handleTaskPath + '\\' + TimeUtils_1.TimeUtils.getNowFormatDate() + '.txt';
+        return this.handleTaskListPath + '\\' + TimeUtils_1.TimeUtils.getNowFormatDate() + '.txt';
     };
     DefaultCacheManager.prototype.getAudioSrcBasePath = function () {
         return this.audioSrcBasePath;
@@ -46,9 +84,9 @@ var DefaultCacheManager = /** @class */ (function () {
     DefaultCacheManager.prototype.getTranslateTextPath = function () {
         return this.translateTextPath;
     };
-    DefaultCacheManager.prototype.saveTaskPath = function (path) {
+    DefaultCacheManager.prototype.isSaveTaskPath = function (path) {
         //内存中
-        this.lastHandleAudioPaths.add(path); //20161017141228
+        this.lastHandleFileNames.add(path); //20161017141228
         //文件中
         var audioPath = this.getTodayCacheTaskPath();
         var isExist = fs.existsSync(audioPath);
@@ -69,60 +107,59 @@ var DefaultCacheManager = /** @class */ (function () {
         return true;
     };
     DefaultCacheManager.prototype.saveFailTaskPath = function (path) {
-        var isExist = this.failHandleAudioPathMap.has(path);
+        var isExist = this.failHandleFileNameMap.has(path);
         var retryCount = 1;
         if (isExist) {
-            retryCount = this.failHandleAudioPathMap.get(path);
+            retryCount = this.failHandleFileNameMap.get(path);
             retryCount++;
         }
-        this.failHandleAudioPathMap.set(path, retryCount);
+        this.failHandleFileNameMap.set(path, retryCount);
     };
-    DefaultCacheManager.prototype.getRetryTaskPathsByToday = function () {
+    DefaultCacheManager.prototype.getRetryModelsByToday = function () {
         var _this = this;
         var retryTasks = [];
-        this.failHandleAudioPathMap.forEach(function (value, key, map) {
+        this.failHandleFileNameMap.forEach(function (value, fileName, map) {
             if (value == _this.retryCount) {
-                retryTasks.push(key);
+                var model = new PhoneSessionModel_1.PhoneSessionModel();
+                model.buildModel({ fileName: fileName });
+                retryTasks.push(model);
             }
         });
         return retryTasks;
     };
     DefaultCacheManager.prototype.removeFailTaskPath = function (path) {
-        var isExist = this.failHandleAudioPathMap.has(path);
+        var isExist = this.failHandleFileNameMap.has(path);
         if (isExist) {
-            this.failHandleAudioPathMap.delete(path);
+            this.failHandleFileNameMap.delete(path);
         }
     };
-    DefaultCacheManager.prototype.removeLastTaskPathOnlyFile = function (path) {
+    DefaultCacheManager.prototype.removeLastTaskPathOnlyFile = function (fileName) {
         var audioPath = this.getTodayCacheTaskPath();
         var content = fs.readFileSync(audioPath).toString();
-        if (content.indexOf(path) > -1) {
-            content.replace(path, '');
-            var audioPathContent = path + os.EOL;
+        if (content.indexOf(fileName) > -1) {
+            content.replace(fileName, '');
+            var audioPathContent = fileName + os.EOL;
             fs.writeFileSync(audioPath, audioPathContent);
             return true;
         }
         return false;
     };
     DefaultCacheManager.prototype.removeLastTaskPathOnlyCache = function (path) {
-        this.lastHandleAudioPaths.delete(path);
+        this.lastHandleFileNames.delete(path);
     };
-    DefaultCacheManager.prototype.removeAllTaskCacheData = function () {
-        this.lastHandleAudioPaths.clear();
-        this.failHandleAudioPathMap.clear();
-        FileUtils_1.FileUtils.rmdirOnlyDir(this.cacheResBasePath);
+    DefaultCacheManager.prototype.removeAllTaskCacheByOneLoop = function () {
+        this.failHandleFileNameMap.clear();
+        FileUtils_1.FileUtils.rmdirOnlyFile(this.cacheResBasePath, this.handleTaskListPath);
     };
-    DefaultCacheManager.prototype.saveTranslateResultToDb = function (model) {
+    DefaultCacheManager.prototype.removeAllTaskCacheByAtTime = function () {
+        this.lastHandleFileNames.clear();
+        FileUtils_1.FileUtils.rmdirOnlyFile(this.handleTaskListPath, null);
     };
-    DefaultCacheManager.prototype.saveTranslateTextToFile = function (_a) {
-        var fileNameExcludeSuffix = _a.fileNameExcludeSuffix, translateTextArr = _a.translateTextArr;
+    DefaultCacheManager.prototype.saveTranslateText = function (sessionModel, fileNameExcludeSuffix, translateTextArr) {
         var translateTextPath = this.getTranslateTextPath() + '\\' + TimeUtils_1.TimeUtils.getNowFormatDate();
         !fs.existsSync(translateTextPath) && fs.mkdirSync(translateTextPath);
         translateTextPath += '\\' + fileNameExcludeSuffix + '.txt';
         fs.writeFileSync(translateTextPath, translateTextArr.join(os.EOL));
-    };
-    DefaultCacheManager.prototype.getAllUnTranslateList = function () {
-        return null;
     };
     return DefaultCacheManager;
 }());

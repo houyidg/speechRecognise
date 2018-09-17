@@ -4,25 +4,28 @@ import { ICacheManager } from './ICacheManager';
 import * as fs from "fs";
 import * as os from "os";
 import { TimeUtils } from '../../util/TimeUtils';
+const isDebug = false;
 export class DefaultCacheManager implements ICacheManager {
-    private lastHandleAudioPaths: Set<String>;//上一次处理的文件路径
-    private failHandleAudioPathMap: Map<String, number>;//上一次处理的文件路径filename,retryCount
+    private lastHandleFileNames: Set<string>;//上一次处理的文件路径
+    private failHandleFileNameMap: Map<string, number>;//上一次处理的文件路径filename,retryCount
     private retryCount = 1;
+    scanCount = 0;
+    supportDocumentFomrat = ['mp3', 'pcm', 'wav'];
+
     //path
-    private audioSrcBasePath: string;
+    protected audioSrcBasePath: string;
     private cacheResBasePath: string;
-    private handleTaskPath;//
+    private handleTaskListPath;//已经处理过的文件名单
     private divisionPath: string;
     private transformPath: string;
     private translateTextPath: string;
-
     public init({ audioSrcBasePath, cacheResBasePath, handleTaskPath, divisionPath, transformPath, translateTextPath }) {
-        this.lastHandleAudioPaths = new Set();
-        this.failHandleAudioPathMap = new Map();
+        this.lastHandleFileNames = new Set();
+        this.failHandleFileNameMap = new Map();
 
         this.audioSrcBasePath = audioSrcBasePath;
         this.cacheResBasePath = cacheResBasePath;
-        this.handleTaskPath = handleTaskPath;
+        this.handleTaskListPath = handleTaskPath;
         this.divisionPath = divisionPath;
         this.transformPath = transformPath;
         this.translateTextPath = translateTextPath;
@@ -33,16 +36,50 @@ export class DefaultCacheManager implements ICacheManager {
         !fs.existsSync(transformPath) && fs.mkdirSync(transformPath);
         !fs.existsSync(translateTextPath) && fs.mkdirSync(translateTextPath);
 
-        console.log('DefaultCacheManager audioSrcBasePath ', audioSrcBasePath);
-        console.log('DefaultCacheManager cacheResBasePath ', cacheResBasePath);
-        console.log('DefaultCacheManager handleTaskPath ', handleTaskPath);
-        console.log('DefaultCacheManager divisionPath', divisionPath);
-        console.log('DefaultCacheManager transformPath', transformPath);
-        console.log('DefaultCacheManager translateTextPath', translateTextPath);
+        isDebug && console.log('DefaultCacheManager audioSrcBasePath ', audioSrcBasePath);
+        isDebug && console.log('DefaultCacheManager cacheResBasePath ', cacheResBasePath);
+        isDebug && console.log('DefaultCacheManager handleTaskPath ', handleTaskPath);
+        isDebug && console.log('DefaultCacheManager divisionPath', divisionPath);
+        isDebug && console.log('DefaultCacheManager transformPath', transformPath);
+        isDebug && console.log('DefaultCacheManager translateTextPath', translateTextPath);
+    }
+
+    public getNeedHandleFiles(): any {
+        this.scanCount++;
+        let scanFiles = fs.readdirSync(this.getAudioSrcBasePath());
+        console.log('DefaultCacheManager 开始扫描指定目录下的文件,自动过滤非音频文件、已经解析的文件 扫描次数:', this.scanCount);
+        let meetFiles: string[] = scanFiles.filter((fileName) => {
+            if (this.lastHandleFileNames.has(fileName)) {
+                return false;
+            }
+            let absolutePath = `${this.getAudioSrcBasePath()}\\${fileName}`;
+            let stat = fs.lstatSync(absolutePath)
+            if (!stat.isFile()) {
+                isDebug && console.log('filter ', fileName, '  !stat.isFile():', !stat.isFile());
+                return false;
+            }
+            let isHandle = this.isSaveTaskPath(fileName);
+            if (isHandle) {
+                isDebug && console.log('filter ', fileName, '  isHandle:', isHandle);
+                return false;
+            }
+            let suffix = fileName.substring(fileName.lastIndexOf('.') + 1, fileName.length);
+            if (this.supportDocumentFomrat.indexOf(suffix) < 0) {
+                isDebug && console.log('filter ', fileName, '  只支持mp3和1分钟时长的pcm和wav格式音频');
+                return false;
+            }
+            return true;
+        });
+        let newMeetModels = meetFiles.map<PhoneSessionModel>((fileName, index, files) => {
+            let model: PhoneSessionModel = new PhoneSessionModel();
+            model.buildModel({ fileName });
+            return model;
+        });
+        return newMeetModels;
     }
 
     public getTodayCacheTaskPath(): string {
-        return this.handleTaskPath + '\\' + TimeUtils.getNowFormatDate() + '.txt';
+        return this.handleTaskListPath + '\\' + TimeUtils.getNowFormatDate() + '.txt';
     }
 
     public getAudioSrcBasePath() {
@@ -58,9 +95,9 @@ export class DefaultCacheManager implements ICacheManager {
         return this.translateTextPath;
     }
 
-    public saveTaskPath(path: string): boolean {
+    public isSaveTaskPath(path: string): boolean {
         //内存中
-        this.lastHandleAudioPaths.add(path);//20161017141228
+        this.lastHandleFileNames.add(path);//20161017141228
         //文件中
         let audioPath = this.getTodayCacheTaskPath();
         let isExist = fs.existsSync(audioPath);
@@ -82,39 +119,41 @@ export class DefaultCacheManager implements ICacheManager {
     }
 
     public saveFailTaskPath(path: string) {
-        let isExist = this.failHandleAudioPathMap.has(path);
+        let isExist = this.failHandleFileNameMap.has(path);
         let retryCount = 1;
         if (isExist) {
-            retryCount = this.failHandleAudioPathMap.get(path);
+            retryCount = this.failHandleFileNameMap.get(path);
             retryCount++;
         }
-        this.failHandleAudioPathMap.set(path, retryCount);
+        this.failHandleFileNameMap.set(path, retryCount);
 
     }
 
-    public getRetryTaskPathsByToday(): string[] {
-        let retryTasks = [];
-        this.failHandleAudioPathMap.forEach((value, key, map) => {
+    public getRetryModelsByToday(): PhoneSessionModel[] {
+        let retryTasks: PhoneSessionModel[] = [];
+        this.failHandleFileNameMap.forEach((value, fileName, map) => {
             if (value == this.retryCount) {
-                retryTasks.push(key);
+                let model: PhoneSessionModel = new PhoneSessionModel();
+                model.buildModel({ fileName });
+                retryTasks.push(model);
             }
         });
         return retryTasks;
     }
 
     public removeFailTaskPath(path: string) {
-        let isExist = this.failHandleAudioPathMap.has(path);
+        let isExist = this.failHandleFileNameMap.has(path);
         if (isExist) {
-            this.failHandleAudioPathMap.delete(path);
+            this.failHandleFileNameMap.delete(path);
         }
     }
 
-    public removeLastTaskPathOnlyFile(path: string) {
+    public removeLastTaskPathOnlyFile(fileName: string) {
         let audioPath = this.getTodayCacheTaskPath();
         let content = fs.readFileSync(audioPath).toString();
-        if (content.indexOf(path) > -1) {
-            content.replace(path, '');
-            let audioPathContent = path + os.EOL;
+        if (content.indexOf(fileName) > -1) {
+            content.replace(fileName, '');
+            let audioPathContent = fileName + os.EOL;
             fs.writeFileSync(audioPath, audioPathContent);
             return true;
         }
@@ -122,27 +161,24 @@ export class DefaultCacheManager implements ICacheManager {
     }
 
     public removeLastTaskPathOnlyCache(path: string) {
-        this.lastHandleAudioPaths.delete(path);
+        this.lastHandleFileNames.delete(path);
     }
 
-    public removeAllTaskCacheData() {
-        this.lastHandleAudioPaths.clear();
-        this.failHandleAudioPathMap.clear();
-        FileUtils.rmdirOnlyDir(this.cacheResBasePath);
+    public removeAllTaskCacheByOneLoop() {
+        this.failHandleFileNameMap.clear();
+        FileUtils.rmdirOnlyFile(this.cacheResBasePath, this.handleTaskListPath);
     }
 
-    public saveTranslateResultToDb(model: PhoneSessionModel) {
-
+    public removeAllTaskCacheByAtTime() {
+        this.lastHandleFileNames.clear();
+        FileUtils.rmdirOnlyFile(this.handleTaskListPath, null);
     }
 
-    public saveTranslateTextToFile({ fileNameExcludeSuffix, translateTextArr }) {
+    public saveTranslateText(sessionModel: PhoneSessionModel, fileNameExcludeSuffix, translateTextArr: string[]) {
         let translateTextPath = this.getTranslateTextPath() + '\\' + TimeUtils.getNowFormatDate();
         !fs.existsSync(translateTextPath) && fs.mkdirSync(translateTextPath);
         translateTextPath += '\\' + fileNameExcludeSuffix + '.txt';
         fs.writeFileSync(translateTextPath, translateTextArr.join(os.EOL));
     }
 
-    public getAllUnTranslateList(){
-        return null;
-    }
 }
