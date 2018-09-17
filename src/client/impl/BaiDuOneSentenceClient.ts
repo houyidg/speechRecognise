@@ -1,8 +1,7 @@
-import { rejects } from 'assert';
-import { MySqlCacheManager } from './../cache/MySqlCacheManager';
-import { AudioRecogniseModel } from './../AudioModel';
-import { ICacheManager } from './../cache/ICacheManager';
-import { DefaultCacheManager } from '../cache/DefaultCacheManager';
+import { FileUtils } from '../../util/FileUtils';
+import { MySqlCacheManager } from '../cache/MySqlCacheManager';
+import { AudioRecogniseModel } from '../AudioModel';
+import { ICacheManager } from '../cache/ICacheManager';
 import { TimeUtils } from '../../util/TimeUtils';
 import { speech, HttpClient } from "baidu-aip-sdk";
 import * as fs from "fs";
@@ -11,12 +10,12 @@ import * as moment from 'moment';
 import { ISpeechRecongniseClient } from "../ISpeechRecongnise";
 import { exec } from "child_process";
 import { BAIDU_CONFIG } from '../../config';
-const isDebug = false;
+const isDebug = true;
 const RecongniseSpeechErrorByDivision = '-RecongniseSpeechErrorByDivision-';
 const RecongniseSpeechErrorByTransForm = '-RecongniseSpeechErrorByTransForm-';
 const RecongniseSpeechErrorByBaiduApi = '-RecongniseSpeechErrorByBaiduApi-';
 const timeout = 30 * 60 * 1000;
-const scanFileTimeByDay = 10;//每天早上10点开始轮训转换为语音
+const scanFileTimeByDay = 9;//每天早上10点开始轮训转换为语音
 /**
  * 对mp3,pcm,wav格式音频进行翻译
  * MP3:超过一分钟时长需要分割，再转换为pcm，再通过api翻译成文字写入文件
@@ -24,39 +23,24 @@ const scanFileTimeByDay = 10;//每天早上10点开始轮训转换为语音
  * 语音识别、合成接口调用量无限。QPS识别默认为10，合成为100
  * 其中会扫描指定目录下的音频文件
  */
-export class BaiDuOneSentenceSpeechRecongniseClient implements ISpeechRecongniseClient {
+export class BaiDuOneSentenceClient implements ISpeechRecongniseClient {
     client: speech;
-    resBasePath: string;
-    audioBasePath: string;
-    translateTextBasePath: string;
-    divisionCachePath: string;
-    transformPath: string;
     cacheManager: ICacheManager;
     scanCount = 0;
     scanFileTimeInterval = 60 * 1000;//60 s
     firstScanFileTime = 60 * 1000;//60 s
     qps = 8;//api 可达最大并发度
     supportDocumentFomrat = ['mp3', 'pcm', 'wav'];
-    public prepare({ resBasePath = process.cwd() + "\\asset", voiceBasePath = resBasePath,
-        divisionCachePath = resBasePath + "\\divisionCache"
-        , transformPath = resBasePath + "\\transformCache", translateTextBasePath = resBasePath + "\\translateText",
-        cacheManagerPath = resBasePath + "\\cacheAudioPath" }) {//准备环境
-        this.audioBasePath = voiceBasePath;
-        this.divisionCachePath = divisionCachePath;
-        this.transformPath = transformPath;
-        this.translateTextBasePath = translateTextBasePath;
-        this.resBasePath = resBasePath;
-        !fs.existsSync(resBasePath) && fs.mkdirSync(resBasePath);
-        !fs.existsSync(voiceBasePath) && fs.mkdirSync(voiceBasePath);
-        !fs.existsSync(divisionCachePath) && fs.mkdirSync(divisionCachePath);
-        !fs.existsSync(translateTextBasePath) && fs.mkdirSync(translateTextBasePath);
-        !fs.existsSync(transformPath) && fs.mkdirSync(transformPath);
+    public prepare({
+        audioSrcBasePath = process.cwd() + "\\asset",
+        cacheResBasePath = process.cwd() + "\\asset",
+        divisionPath = cacheResBasePath + "\\divisionCache",
+        transformPath = cacheResBasePath + "\\transformCache",
+        translateTextPath = process.cwd() + "\\translateTexts",
+        handleTaskPath = cacheResBasePath + "\\cacheAudioPath" }) {//准备环境
         this.cacheManager = new MySqlCacheManager();
-        this.cacheManager.init(cacheManagerPath);
-        console.log('SpeechRecongniseClient transformPath ', transformPath);
-        console.log('SpeechRecongniseClient divisionCachePath ', divisionCachePath);
-        console.log('SpeechRecongniseClient basePath', voiceBasePath);
-        console.log('SpeechRecongniseClient resBasePath', resBasePath);
+        this.cacheManager.init({ audioSrcBasePath, cacheResBasePath, handleTaskPath, divisionPath, transformPath, translateTextPath });
+
         // 新建一个对象，建议只保存一个对象调用服务接口
         this.client = new speech(BAIDU_CONFIG.APP_ID, BAIDU_CONFIG.API_KEY, BAIDU_CONFIG.SECRET_KEY);
         // 设置request库的一些参数，例如代理服务地址，超时时间等
@@ -103,10 +87,10 @@ export class BaiDuOneSentenceSpeechRecongniseClient implements ISpeechRecongnise
 
     private async handle() {
         this.scanCount++;
-        let scanFiles = fs.readdirSync(this.audioBasePath);
+        let scanFiles = fs.readdirSync(this.cacheManager.getAudioSrcBasePath());
         console.log('start  自动过滤非音频文件、已经解析的文件  this.scanCount:', this.scanCount);
         let meetFiles: string[] = scanFiles.filter((fileName) => {
-            let absolutePath = `${this.audioBasePath}\\${fileName}`;
+            let absolutePath = `${this.cacheManager.getAudioSrcBasePath()}\\${fileName}`;
             let stat = fs.lstatSync(absolutePath)
             if (!stat.isFile()) {
                 console.log('filter ', fileName, '  !stat.isFile():', !stat.isFile());
@@ -163,11 +147,13 @@ export class BaiDuOneSentenceSpeechRecongniseClient implements ISpeechRecongnise
         let endTime = new Date().getTime() / 1000;
         console.log('--------------------------------end all Task cost time:', (endTime - startTime).toFixed(0), '秒');
         console.log('\n\r');
+        //clear cache
+        this.cacheManager.removeAllTaskCacheData();
     }
 
     assembleTask(fileName, nextTaskCallback) {
         let startTime = new Date().getTime() / 1000;
-        let absolutePath = `${this.audioBasePath}\\${fileName}`;
+        let absolutePath = `${this.cacheManager.getAudioSrcBasePath()}\\${fileName}`;
         let suffix = fileName.substring(fileName.lastIndexOf('.') + 1, fileName.length);
         let fileNameExcludeSuffix = fileName.replace(suffix, '').replace('.', '');
         let audioData = fs.readFileSync(absolutePath);
@@ -197,94 +183,68 @@ export class BaiDuOneSentenceSpeechRecongniseClient implements ISpeechRecongnise
         let rsCode = 1;//1 ok ,2 gettime fail ,3 api fail,4 
         let apiError = [];
         let newSuffix = suffix;
-        if (false) {
-            apiError = [];
+
+        let rs = await this.getVoicePlayTime(absolutePath);
+        isDebug && console.log('playTime:', rs);
+        let timeQuanTum = TimeUtils.getSecondByTimeOffset(rs.playTime);
+        if (timeQuanTum.length > 1) {
             let translateTextArr: string[] = [];
-            // todo 翻译
-            let translatePath = absolutePath;
-            let rs = await this.handleSingleVoice({ translatePath });
-            if (rs && rs.err_msg && rs.err_msg == 'success.') {
-                translateTextArr.push(rs.result[0]);
-            } else {
-                translateTextArr.push(RecongniseSpeechErrorByBaiduApi);
-                apiError.push({ index: 1, rs: rs });
+            apiError = [];
+            for (let index = 0, len = timeQuanTum.length; index < len - 1; index++) {
+                let startTime = timeQuanTum[index];
+                let nextTime = timeQuanTum[index + 1];
+                let duration = TimeUtils.getMinDuration(startTime, nextTime);
+                let srcPath = absolutePath;
+                let divisionPath = this.cacheManager.getDivisionPath() + '\\' + fileNameExcludeSuffix + '_division_' + index + '.' + suffix;
+                let nextPath = divisionPath;
+                //division
+                let rs = await this.divisionVoiceByTime({ startTime, duration, srcPath, divisionPath })
+                    .then((rs) => {
+                        isDebug && console.log('divisionVoiceByTime rs', rs);
+                        if (!isMp3) {
+                            return new Promise((rs, rj) => { rs(1); });
+                        } else {
+                            //change pcm
+                            let transformPath = this.cacheManager.getTransformPath() + '\\' + fileNameExcludeSuffix + '_transform_' + index + '.pcm';
+                            nextPath = transformPath;
+                            newSuffix = 'pcm';
+                            return this.transformMp3ToPcm({ divisionPath, transformPath });
+                        }
+                    }).then((rs) => {
+                        isDebug && console.log('transformMp3ToPcm rs', rs);
+                        // todo 翻译
+                        let translatePath = nextPath;
+                        return this.handleSingleVoice({ translatePath, newSuffix });
+                    }).catch((rs) => {
+                        if (rs) {
+                            console.log('handleSingleVoice catch rs', rs);
+                            return new Promise((rs, rj) => {
+                                rs(rs);
+                            });
+                        }
+                    });
+                let { result } = rs;
+                if (result && result[0]) {
+                    translateTextArr.push(result[0]);
+                } else {
+                    translateTextArr.push(RecongniseSpeechErrorByBaiduApi);
+                    apiError.push({ fileName: fileNameExcludeSuffix + '.' + suffix, rs: rs });
+                }
+            }
+            if (translateTextArr.indexOf(RecongniseSpeechErrorByBaiduApi) > -1) {
                 rsCode = 3;
             }
-            isDebug && console.log('handleSingleVoice !isMp3 rs', rs);
-            //持久化
-            let translateTextPath = this.translateTextBasePath + '\\' + fileNameExcludeSuffix + '.txt';
-            this.saveTranslateTextToFile({ translateTextPath, translateTextArr });
+            isDebug && console.log('saveTranslateTextToFile rsList', translateTextArr.join());
+            //存储到数据库
+            let model: AudioRecogniseModel = new AudioRecogniseModel();
+            model.buildModel({ fileNameExcludeSuffix, translateTextArr })
+            this.cacheManager.saveTranslateResultToDb(model);
+            // //存储到文件
+            this.cacheManager.saveTranslateTextToFile({ fileNameExcludeSuffix, translateTextArr });
         } else {
-            let rs = await this.getVoicePlayTime(absolutePath);
-            isDebug && console.log('playTime:', rs);
-            let timeQuanTum = TimeUtils.getSecondByTimeOffset(rs.playTime);
-            if (timeQuanTum.length > 1) {
-                let translateTextArr: string[] = [];
-                apiError = [];
-                for (let index = 0, len = timeQuanTum.length; index < len - 1; index++) {
-                    let startTime = timeQuanTum[index];
-                    let nextTime = timeQuanTum[index + 1];
-                    let duration = TimeUtils.getMinDuration(startTime, nextTime);
-                    let srcPath = absolutePath;
-                    let divisionPath = this.divisionCachePath + '\\' + fileNameExcludeSuffix + '_division_' + index + '.' + suffix;
-                    let nextPath = divisionPath;
-                    //division
-                    let rs = await this.divisionVoiceByTime({ startTime, duration, srcPath, divisionPath })
-                        .then((rs) => {
-                            isDebug && console.log('divisionVoiceByTime rs', rs);
-                            if (!isMp3) {
-                                return new Promise((rs, rj) => { rs(1); });
-                            } else {
-                                //change pcm
-                                let transformPath = this.transformPath + '\\' + fileNameExcludeSuffix + '_transform_' + index + '.pcm';
-                                nextPath = transformPath;
-                                newSuffix = 'pcm';
-                                return this.transformMp3ToPcm({ divisionPath, transformPath });
-                            }
-                        }).then((rs) => {
-                            isDebug && console.log('transformMp3ToPcm rs', rs);
-                            // todo 翻译
-                            let translatePath = nextPath;
-                            return this.handleSingleVoice({ translatePath, newSuffix });
-                        }).catch((rs) => {
-                            if (rs) {
-                                console.log('handleSingleVoice catch rs', rs);
-                                return new Promise((rs, rj) => {
-                                    rs(rs);
-                                });
-                            }
-                        });
-                    let { result } = rs;
-                    if (result && result[0]) {
-                        translateTextArr.push(result[0]);
-                    } else {
-                        translateTextArr.push(RecongniseSpeechErrorByBaiduApi);
-                        apiError.push({ fileName: fileNameExcludeSuffix + '.' + suffix, rs: rs });
-                    }
-                }
-                if (translateTextArr.indexOf(RecongniseSpeechErrorByBaiduApi) > -1) {
-                    rsCode = 3;
-                }
-                isDebug && console.log('saveTranslateTextToFile rsList', translateTextArr.join());
-                //存储到数据库
-                //20161020145043_1006_15902875896
-                let fileArr = fileNameExcludeSuffix.split('_');
-                let model: AudioRecogniseModel = new AudioRecogniseModel();
-                model.audioId = fileNameExcludeSuffix;
-                model.clientPhone = fileArr[2];
-                model.content = translateTextArr.join();
-                model.employeeNo = fileArr[1];
-                model.translateDate = TimeUtils.getNowAccurateDate();
-                model.recordDate = fileArr[0];
-                this.cacheManager.saveTranslateResult(model);
-                // //存储到文件
-                let translateTextPath = this.translateTextBasePath + '\\' + fileNameExcludeSuffix + '.txt';
-                this.saveTranslateTextToFile({ translateTextPath, translateTextArr });
-            } else {
-                //转换分割音频时间段异常
-                rsCode = 2;
-                isDebug && console.log('timeQuanTum 转换分割音频时间段异常', timeQuanTum);
-            }
+            //转换分割音频时间段异常
+            rsCode = 2;
+            isDebug && console.log('timeQuanTum 转换分割音频时间段异常', timeQuanTum);
         }
         return new Promise((rs, rj) => {
             if (rsCode == 1) {
@@ -293,10 +253,6 @@ export class BaiDuOneSentenceSpeechRecongniseClient implements ISpeechRecongnise
                 rj({ rsCode: rsCode, apiError: apiError });
             }
         });
-    }
-
-    saveTranslateTextToFile({ translateTextPath, translateTextArr = [] }) {
-        fs.writeFileSync(translateTextPath, translateTextArr.join(os.EOL));
     }
 
     async handleSingleVoice({ translatePath, newSuffix = 'pcm' }): Promise<any> {

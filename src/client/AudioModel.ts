@@ -1,3 +1,4 @@
+import { TimeUtils } from './../util/TimeUtils';
 export class AudioRecogniseModel {
     public audioId: string;
     public recordDate: string;
@@ -5,6 +6,18 @@ export class AudioRecogniseModel {
     public content: string;
     public employeeNo: string;
     public clientPhone: string;
+
+    //20161020145043_1006_15902875896
+    public buildModel({ fileNameExcludeSuffix, translateTextArr }) {
+        let fileArr = fileNameExcludeSuffix.split('_');
+        this.audioId = fileNameExcludeSuffix;
+        this.clientPhone = fileArr[2];
+        this.content = translateTextArr.join();
+        this.employeeNo = fileArr[1];
+        this.translateDate = TimeUtils.getNowAccurateDate();
+        this.recordDate = fileArr[0];
+        return this;
+    }
 }
 /**
  * CREATE TABLE `speech_recognise_result`.`audiorecognisemodel` (
@@ -16,8 +29,7 @@ export class AudioRecogniseModel {
   `clientPhone` VARCHAR(45) NULL,
   PRIMARY KEY (`audioId`),
   UNIQUE INDEX `audioId_UNIQUE` (`audioId` ASC))
-ENGINE = InnoDB
-DEFAULT CHARACTER SET = utf8
-COMMENT = 'AudioRecogniseModel';
-
+  ENGINE = InnoDB
+  DEFAULT CHARACTER SET = utf8
+  COMMENT = 'AudioRecogniseModel';
  */

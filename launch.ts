@@ -1,9 +1,9 @@
-import { BaiDuOneSentenceSpeechRecongniseClient } from "./src/client/impl/BaiDuOneSentenceSpeechRecongniseClient";
+import { BaiDuOneSentenceClient } from "./src/client/impl/BaiDuOneSentenceClient";
 import { ISpeechRecongniseClient } from "./src/client/ISpeechRecongnise";
 
-let client: ISpeechRecongniseClient = new BaiDuOneSentenceSpeechRecongniseClient();
+let client: ISpeechRecongniseClient = new BaiDuOneSentenceClient();
 //C:\Users\Administrator\Desktop\file\语音识别\10月录音
-// let voiceBasePath = 'C:\\Users\\Administrator\\Desktop\\file\\speechRecognise\\tenMonthRecord';
-let voiceBasePath = 'C:\\Users\\Administrator\\Documents\\Tencent Files\\511700417\\FileRecv\\MobileFile';
-client.prepare({ voiceBasePath });
+// let audioSrcBasePath = 'C:\\Users\\Administrator\\Desktop\\file\\speechRecognise\\tenMonthRecord';
+let audioSrcBasePath = 'C:\\Users\\Administrator\\Documents\\GitHub\\speechRecognise\\temp';
+client.prepare({ audioSrcBasePath });
 client.start();

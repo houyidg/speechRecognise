@@ -17,8 +17,9 @@ var MySqlCacheManager = /** @class */ (function (_super) {
     function MySqlCacheManager() {
         return _super !== null && _super.apply(this, arguments) || this;
     }
-    MySqlCacheManager.prototype.init = function (cacheAudioBasePath) {
-        _super.prototype.init.call(this, cacheAudioBasePath);
+    MySqlCacheManager.prototype.init = function (_a) {
+        var audioSrcBasePath = _a.audioSrcBasePath, cacheResBasePath = _a.cacheResBasePath, handleTaskPath = _a.handleTaskPath, divisionPath = _a.divisionPath, transformPath = _a.transformPath, translateTextPath = _a.translateTextPath;
+        _super.prototype.init.call(this, { audioSrcBasePath: audioSrcBasePath, cacheResBasePath: cacheResBasePath, handleTaskPath: handleTaskPath, divisionPath: divisionPath, transformPath: transformPath, translateTextPath: translateTextPath });
         //CREATE SCHEMA `speech_recognise_result` DEFAULT CHARACTER SET utf8 ;
         this.connection = mysql.createConnection({
             host: 'localhost',
@@ -27,9 +28,9 @@ var MySqlCacheManager = /** @class */ (function (_super) {
             database: 'speech_recognise_result'
         });
     };
-    MySqlCacheManager.prototype.saveTranslateResult = function (model) {
+    MySqlCacheManager.prototype.saveTranslateResultToDb = function (model) {
         var _this = this;
-        _super.prototype.saveTranslateResult.call(this, model);
+        _super.prototype.saveTranslateResultToDb.call(this, model);
         var searchSql = 'SELECT audioId FROM audiorecognisemodel WHERE audioId=?';
         this.connection.query(searchSql, [model.audioId], function (err, result) {
             if (err) {

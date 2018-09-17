@@ -1,12 +1,10 @@
 import { AudioRecogniseModel } from './../AudioModel';
 const mysql = require('mysql');
 import { DefaultCacheManager } from './DefaultCacheManager';
-import { clearTimeout } from 'timers';
 export class MySqlCacheManager extends DefaultCacheManager {
     private connection;
-
-    public init(cacheAudioBasePath) {
-        super.init(cacheAudioBasePath);
+    public init({ audioSrcBasePath, cacheResBasePath, handleTaskPath, divisionPath, transformPath, translateTextPath }) {
+        super.init({ audioSrcBasePath, cacheResBasePath, handleTaskPath, divisionPath, transformPath, translateTextPath });
         //CREATE SCHEMA `speech_recognise_result` DEFAULT CHARACTER SET utf8 ;
         this.connection = mysql.createConnection({
             host: 'localhost',
@@ -16,8 +14,8 @@ export class MySqlCacheManager extends DefaultCacheManager {
         });
     }
 
-    public saveTranslateResult(model: AudioRecogniseModel) {
-        super.saveTranslateResult(model);
+    public saveTranslateResultToDb(model: AudioRecogniseModel) {
+        super.saveTranslateResultToDb(model);
         let searchSql = 'SELECT audioId FROM audiorecognisemodel WHERE audioId=?';
         this.connection.query(searchSql, [model.audioId], (err, result) => {
             if (err) {

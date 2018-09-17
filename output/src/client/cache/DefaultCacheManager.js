@@ -1,5 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+var FileUtils_1 = require("./../../util/FileUtils");
 var fs = require("fs");
 var os = require("os");
 var TimeUtils_1 = require("../../util/TimeUtils");
@@ -7,14 +8,43 @@ var DefaultCacheManager = /** @class */ (function () {
     function DefaultCacheManager() {
         this.retryCount = 1;
     }
-    DefaultCacheManager.prototype.init = function (cacheAudioBasePath) {
+    DefaultCacheManager.prototype.init = function (_a) {
+        var audioSrcBasePath = _a.audioSrcBasePath, cacheResBasePath = _a.cacheResBasePath, handleTaskPath = _a.handleTaskPath, divisionPath = _a.divisionPath, transformPath = _a.transformPath, translateTextPath = _a.translateTextPath;
         this.lastHandleAudioPaths = new Set();
         this.failHandleAudioPathMap = new Map();
-        this.cacheAudioBasePath = cacheAudioBasePath;
-        !fs.existsSync(cacheAudioBasePath) && fs.mkdirSync(cacheAudioBasePath);
+        this.audioSrcBasePath = audioSrcBasePath;
+        this.cacheResBasePath = cacheResBasePath;
+        this.handleTaskPath = handleTaskPath;
+        this.divisionPath = divisionPath;
+        this.transformPath = transformPath;
+        this.translateTextPath = translateTextPath;
+        !fs.existsSync(audioSrcBasePath) && fs.mkdirSync(audioSrcBasePath);
+        !fs.existsSync(cacheResBasePath) && fs.mkdirSync(cacheResBasePath);
+        !fs.existsSync(handleTaskPath) && fs.mkdirSync(handleTaskPath);
+        !fs.existsSync(divisionPath) && fs.mkdirSync(divisionPath);
+        !fs.existsSync(transformPath) && fs.mkdirSync(transformPath);
+        !fs.existsSync(translateTextPath) && fs.mkdirSync(translateTextPath);
+        console.log('DefaultCacheManager audioSrcBasePath ', audioSrcBasePath);
+        console.log('DefaultCacheManager cacheResBasePath ', cacheResBasePath);
+        console.log('DefaultCacheManager handleTaskPath ', handleTaskPath);
+        console.log('DefaultCacheManager divisionPath', divisionPath);
+        console.log('DefaultCacheManager transformPath', transformPath);
+        console.log('DefaultCacheManager translateTextPath', translateTextPath);
     };
     DefaultCacheManager.prototype.getTodayCacheTaskPath = function () {
-        return this.cacheAudioBasePath + '\\' + TimeUtils_1.TimeUtils.getNowFormatDate() + '.txt';
+        return this.handleTaskPath + '\\' + TimeUtils_1.TimeUtils.getNowFormatDate() + '.txt';
+    };
+    DefaultCacheManager.prototype.getAudioSrcBasePath = function () {
+        return this.audioSrcBasePath;
+    };
+    DefaultCacheManager.prototype.getDivisionPath = function () {
+        return this.divisionPath;
+    };
+    DefaultCacheManager.prototype.getTransformPath = function () {
+        return this.transformPath;
+    };
+    DefaultCacheManager.prototype.getTranslateTextPath = function () {
+        return this.translateTextPath;
     };
     DefaultCacheManager.prototype.saveTaskPath = function (path) {
         //内存中
@@ -77,13 +107,19 @@ var DefaultCacheManager = /** @class */ (function () {
     DefaultCacheManager.prototype.removeLastTaskPathOnlyCache = function (path) {
         this.lastHandleAudioPaths.delete(path);
     };
-    DefaultCacheManager.prototype.removeAllTaskPath = function () {
+    DefaultCacheManager.prototype.removeAllTaskCacheData = function () {
         this.lastHandleAudioPaths.clear();
         this.failHandleAudioPathMap.clear();
+        FileUtils_1.FileUtils.rmdirOnlyDir(this.cacheResBasePath);
     };
-    DefaultCacheManager.prototype.backUpTaskPathByTimer = function () {
+    DefaultCacheManager.prototype.saveTranslateResultToDb = function (model) {
     };
-    DefaultCacheManager.prototype.saveTranslateResult = function (model) {
+    DefaultCacheManager.prototype.saveTranslateTextToFile = function (_a) {
+        var fileNameExcludeSuffix = _a.fileNameExcludeSuffix, translateTextArr = _a.translateTextArr;
+        var translateTextPath = this.getTranslateTextPath() + '\\' + TimeUtils_1.TimeUtils.getNowFormatDate();
+        !fs.existsSync(translateTextPath) && fs.mkdirSync(translateTextPath);
+        translateTextPath += '\\' + fileNameExcludeSuffix + '.txt';
+        fs.writeFileSync(translateTextPath, translateTextArr.join(os.EOL));
     };
     return DefaultCacheManager;
 }());

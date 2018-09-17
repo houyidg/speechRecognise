@@ -1,3 +1,4 @@
+import { FileUtils } from './../../util/FileUtils';
 import { AudioRecogniseModel } from './../AudioModel';
 
 import { ICacheManager } from './ICacheManager';
@@ -7,18 +8,55 @@ import { TimeUtils } from '../../util/TimeUtils';
 export class DefaultCacheManager implements ICacheManager {
     private lastHandleAudioPaths: Set<String>;//上一次处理的文件路径
     private failHandleAudioPathMap: Map<String, number>;//上一次处理的文件路径filename,retryCount
-    private cacheAudioBasePath;//以及处理的audio路径文件夹
     private retryCount = 1;
+    //path
+    private audioSrcBasePath: string;
+    private cacheResBasePath: string;
+    private handleTaskPath;//
+    private divisionPath: string;
+    private transformPath: string;
+    private translateTextPath: string;
 
-    public init(cacheAudioBasePath) {
+    public init({ audioSrcBasePath, cacheResBasePath, handleTaskPath, divisionPath, transformPath, translateTextPath }) {
         this.lastHandleAudioPaths = new Set();
         this.failHandleAudioPathMap = new Map();
-        this.cacheAudioBasePath = cacheAudioBasePath;
-        !fs.existsSync(cacheAudioBasePath) && fs.mkdirSync(cacheAudioBasePath);
+
+        this.audioSrcBasePath = audioSrcBasePath;
+        this.cacheResBasePath = cacheResBasePath;
+        this.handleTaskPath = handleTaskPath;
+        this.divisionPath = divisionPath;
+        this.transformPath = transformPath;
+        this.translateTextPath = translateTextPath;
+        !fs.existsSync(audioSrcBasePath) && fs.mkdirSync(audioSrcBasePath);
+        !fs.existsSync(cacheResBasePath) && fs.mkdirSync(cacheResBasePath);
+        !fs.existsSync(handleTaskPath) && fs.mkdirSync(handleTaskPath);
+        !fs.existsSync(divisionPath) && fs.mkdirSync(divisionPath);
+        !fs.existsSync(transformPath) && fs.mkdirSync(transformPath);
+        !fs.existsSync(translateTextPath) && fs.mkdirSync(translateTextPath);
+
+        console.log('DefaultCacheManager audioSrcBasePath ', audioSrcBasePath);
+        console.log('DefaultCacheManager cacheResBasePath ', cacheResBasePath);
+        console.log('DefaultCacheManager handleTaskPath ', handleTaskPath);
+        console.log('DefaultCacheManager divisionPath', divisionPath);
+        console.log('DefaultCacheManager transformPath', transformPath);
+        console.log('DefaultCacheManager translateTextPath', translateTextPath);
     }
 
     public getTodayCacheTaskPath(): string {
-        return this.cacheAudioBasePath + '\\' + TimeUtils.getNowFormatDate() + '.txt';
+        return this.handleTaskPath + '\\' + TimeUtils.getNowFormatDate() + '.txt';
+    }
+
+    public getAudioSrcBasePath() {
+        return this.audioSrcBasePath;
+    }
+    public getDivisionPath() {
+        return this.divisionPath;
+    }
+    public getTransformPath() {
+        return this.transformPath;
+    }
+    public getTranslateTextPath() {
+        return this.translateTextPath;
     }
 
     public saveTaskPath(path: string): boolean {
@@ -88,16 +126,20 @@ export class DefaultCacheManager implements ICacheManager {
         this.lastHandleAudioPaths.delete(path);
     }
 
-    public removeAllTaskPath() {
+    public removeAllTaskCacheData() {
         this.lastHandleAudioPaths.clear();
         this.failHandleAudioPathMap.clear();
+        FileUtils.rmdirOnlyDir(this.cacheResBasePath);
     }
 
-    public backUpTaskPathByTimer() {
+    public saveTranslateResultToDb(model: AudioRecogniseModel) {
 
     }
 
-    public saveTranslateResult(model: AudioRecogniseModel) {
-
+    public saveTranslateTextToFile({ fileNameExcludeSuffix, translateTextArr }) {
+        let translateTextPath = this.getTranslateTextPath() + '\\' + TimeUtils.getNowFormatDate();
+        !fs.existsSync(translateTextPath) && fs.mkdirSync(translateTextPath);
+        translateTextPath += '\\' + fileNameExcludeSuffix + '.txt';
+        fs.writeFileSync(translateTextPath, translateTextArr.join(os.EOL));
     }
 }

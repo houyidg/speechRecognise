@@ -8,7 +8,11 @@ import { AudioRecogniseModel } from './../AudioModel';
     *  保存翻译后的任务
  */
 export interface ICacheManager {
-    init(cacheAudioBasePath)
+    getAudioSrcBasePath();
+    getDivisionPath();
+    getTransformPath();
+    getTranslateTextPath();
+    init({ audioSrcBasePath, cacheResBasePath, handleTaskPath, divisionPath, transformPath, translateTextPath })
     /**
      * @param path 
      * return true 代表已经在处理或者处理完成， false 
@@ -19,9 +23,9 @@ export interface ICacheManager {
     removeLastTaskPathOnlyFile(path: string);
     removeFailTaskPath(path: string);
     getRetryTaskPathsByToday(): string[];
-    removeAllTaskPath();
-    backUpTaskPathByTimer();
+    removeAllTaskCacheData();
     getTodayCacheTaskPath();
-    saveTranslateResult(model: AudioRecogniseModel);
+    saveTranslateResultToDb(model: AudioRecogniseModel);
+    saveTranslateTextToFile({ fileNameExcludeSuffix, translateTextArr });
 }
 

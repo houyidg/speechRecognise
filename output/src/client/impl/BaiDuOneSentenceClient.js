@@ -35,8 +35,8 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
     }
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-var MySqlCacheManager_1 = require("./../cache/MySqlCacheManager");
-var AudioModel_1 = require("./../AudioModel");
+var MySqlCacheManager_1 = require("../cache/MySqlCacheManager");
+var AudioModel_1 = require("../AudioModel");
 var TimeUtils_1 = require("../../util/TimeUtils");
 var baidu_aip_sdk_1 = require("baidu-aip-sdk");
 var fs = require("fs");
@@ -56,15 +56,15 @@ var scanFileTimeByDay = 9; //每天早上10点开始轮训转换为语音
  * 语音识别、合成接口调用量无限。QPS识别默认为10，合成为100
  * 其中会扫描指定目录下的音频文件
  */
-var BaiDuOneSentenceSpeechRecongniseClient = /** @class */ (function () {
-    function BaiDuOneSentenceSpeechRecongniseClient() {
+var BaiDuOneSentenceClient = /** @class */ (function () {
+    function BaiDuOneSentenceClient() {
         this.scanCount = 0;
         this.scanFileTimeInterval = 60 * 1000; //60 s
         this.firstScanFileTime = 60 * 1000; //60 s
         this.qps = 8; //api 可达最大并发度
         this.supportDocumentFomrat = ['mp3', 'pcm', 'wav'];
     }
-    BaiDuOneSentenceSpeechRecongniseClient.prototype.prepare = function (_a) {
+    BaiDuOneSentenceClient.prototype.prepare = function (_a) {
         var _b = _a.audioSrcBasePath, audioSrcBasePath = _b === void 0 ? process.cwd() + "\\asset" : _b, _c = _a.cacheResBasePath, cacheResBasePath = _c === void 0 ? process.cwd() + "\\asset" : _c, _d = _a.divisionPath, divisionPath = _d === void 0 ? cacheResBasePath + "\\divisionCache" : _d, _e = _a.transformPath, transformPath = _e === void 0 ? cacheResBasePath + "\\transformCache" : _e, _f = _a.translateTextPath, translateTextPath = _f === void 0 ? process.cwd() + "\\translateTexts" : _f, _g = _a.handleTaskPath, handleTaskPath = _g === void 0 ? cacheResBasePath + "\\cacheAudioPath" : _g;
         this.cacheManager = new MySqlCacheManager_1.MySqlCacheManager();
         this.cacheManager.init({ audioSrcBasePath: audioSrcBasePath, cacheResBasePath: cacheResBasePath, handleTaskPath: handleTaskPath, divisionPath: divisionPath, transformPath: transformPath, translateTextPath: translateTextPath });
@@ -96,7 +96,7 @@ var BaiDuOneSentenceSpeechRecongniseClient = /** @class */ (function () {
         this.scanFileTimeInterval = 24 * 60 * 60 * 1000;
         console.log('SpeechRecongniseClient this.firstScanFileTime:', this.firstScanFileTime / 1000, '秒     this.scanFileTimeInterval :', this.scanFileTimeInterval / (1000 * 60 * 60), 'h 间隔执行 ');
     };
-    BaiDuOneSentenceSpeechRecongniseClient.prototype.start = function () {
+    BaiDuOneSentenceClient.prototype.start = function () {
         return __awaiter(this, void 0, void 0, function () {
             var _this = this;
             return __generator(this, function (_a) {
@@ -115,7 +115,7 @@ var BaiDuOneSentenceSpeechRecongniseClient = /** @class */ (function () {
             });
         });
     };
-    BaiDuOneSentenceSpeechRecongniseClient.prototype.handle = function () {
+    BaiDuOneSentenceClient.prototype.handle = function () {
         return __awaiter(this, void 0, void 0, function () {
             var scanFiles, meetFiles, startTime, _loop_1, this_1, endTime;
             var _this = this;
@@ -211,7 +211,7 @@ var BaiDuOneSentenceSpeechRecongniseClient = /** @class */ (function () {
             });
         });
     };
-    BaiDuOneSentenceSpeechRecongniseClient.prototype.assembleTask = function (fileName, nextTaskCallback) {
+    BaiDuOneSentenceClient.prototype.assembleTask = function (fileName, nextTaskCallback) {
         var _this = this;
         var startTime = new Date().getTime() / 1000;
         var absolutePath = this.cacheManager.getAudioSrcBasePath() + "\\" + fileName;
@@ -239,7 +239,7 @@ var BaiDuOneSentenceSpeechRecongniseClient = /** @class */ (function () {
                 return nextTaskCallback();
         });
     };
-    BaiDuOneSentenceSpeechRecongniseClient.prototype.startHandleSingleVoice = function (_a) {
+    BaiDuOneSentenceClient.prototype.startHandleSingleVoice = function (_a) {
         var absolutePath = _a.absolutePath, fileNameExcludeSuffix = _a.fileNameExcludeSuffix, suffix = _a.suffix, isMp3 = _a.isMp3;
         return __awaiter(this, void 0, void 0, function () {
             var rsCode, apiError, newSuffix, rs, timeQuanTum, translateTextArr, _loop_3, this_2, index, len, model;
@@ -349,7 +349,7 @@ var BaiDuOneSentenceSpeechRecongniseClient = /** @class */ (function () {
             });
         });
     };
-    BaiDuOneSentenceSpeechRecongniseClient.prototype.handleSingleVoice = function (_a) {
+    BaiDuOneSentenceClient.prototype.handleSingleVoice = function (_a) {
         var translatePath = _a.translatePath, _b = _a.newSuffix, newSuffix = _b === void 0 ? 'pcm' : _b;
         return __awaiter(this, void 0, void 0, function () {
             var voice;
@@ -379,7 +379,7 @@ var BaiDuOneSentenceSpeechRecongniseClient = /** @class */ (function () {
      * return 00:13:02 hh:mm:ss
      * @param voicePath
      */
-    BaiDuOneSentenceSpeechRecongniseClient.prototype.getVoicePlayTime = function (voicePath) {
+    BaiDuOneSentenceClient.prototype.getVoicePlayTime = function (voicePath) {
         return __awaiter(this, void 0, void 0, function () {
             var cmdStr;
             return __generator(this, function (_a) {
@@ -415,7 +415,7 @@ var BaiDuOneSentenceSpeechRecongniseClient = /** @class */ (function () {
             });
         });
     };
-    BaiDuOneSentenceSpeechRecongniseClient.prototype.divisionVoiceByTime = function (_a) {
+    BaiDuOneSentenceClient.prototype.divisionVoiceByTime = function (_a) {
         var startTime = _a.startTime, duration = _a.duration, srcPath = _a.srcPath, divisionPath = _a.divisionPath;
         return __awaiter(this, void 0, void 0, function () {
             var cmdStr;
@@ -433,7 +433,7 @@ var BaiDuOneSentenceSpeechRecongniseClient = /** @class */ (function () {
             });
         });
     };
-    BaiDuOneSentenceSpeechRecongniseClient.prototype.transformMp3ToPcm = function (_a) {
+    BaiDuOneSentenceClient.prototype.transformMp3ToPcm = function (_a) {
         var divisionPath = _a.divisionPath, transformPath = _a.transformPath;
         return __awaiter(this, void 0, void 0, function () {
             var cmdStr;
@@ -451,14 +451,14 @@ var BaiDuOneSentenceSpeechRecongniseClient = /** @class */ (function () {
             });
         });
     };
-    BaiDuOneSentenceSpeechRecongniseClient.prototype.getAudioLen = function (voice) {
+    BaiDuOneSentenceClient.prototype.getAudioLen = function (voice) {
         return voice && ((voice.length / 1024).toFixed(0) + 'kb');
     };
-    BaiDuOneSentenceSpeechRecongniseClient.prototype.stop = function () {
+    BaiDuOneSentenceClient.prototype.stop = function () {
     };
-    return BaiDuOneSentenceSpeechRecongniseClient;
+    return BaiDuOneSentenceClient;
 }());
-exports.BaiDuOneSentenceSpeechRecongniseClient = BaiDuOneSentenceSpeechRecongniseClient;
+exports.BaiDuOneSentenceClient = BaiDuOneSentenceClient;
 // // 识别本地文件，附带参数
 // client.recognize(voiceBuffer, "pcm", 16000， {dev_pid: "1536", cuid: Math.random()}}).then(function (result) {
 //     console.log("<recognize>: " + JSON.stringify(result));
