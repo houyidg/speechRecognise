@@ -4,10 +4,11 @@ import { ICacheManager } from './ICacheManager';
 import * as fs from "fs";
 import * as os from "os";
 import { TimeUtils } from '../../util/TimeUtils';
-const isDebug = false;
+const path = require('path');
+const isDebug = true;
 export class DefaultCacheManager implements ICacheManager {
     private lastHandleFileNames: Set<string>;//上一次处理的文件路径
-    private failHandleFileNameMap: Map<string, number>;//上一次处理的文件路径filename,retryCount
+    private failHandleFileNameMap: Map<PhoneSessionModel, number>;//上一次处理的文件路径filename,retryCount
     private retryCount = 1;
     scanCount = 0;
     supportDocumentFomrat = ['mp3', 'pcm', 'wav'];
@@ -52,7 +53,7 @@ export class DefaultCacheManager implements ICacheManager {
             if (this.lastHandleFileNames.has(fileName)) {
                 return false;
             }
-            let absolutePath = `${this.getAudioSrcBasePath()}\\${fileName}`;
+            let absolutePath = `${this.getAudioSrcBasePath()}${path.sep}${fileName}`;
             let stat = fs.lstatSync(absolutePath)
             if (!stat.isFile()) {
                 isDebug && console.log('filter ', fileName, '  !stat.isFile():', !stat.isFile());
@@ -79,7 +80,7 @@ export class DefaultCacheManager implements ICacheManager {
     }
 
     public getTodayCacheTaskPath(): string {
-        return this.handleTaskListPath + '\\' + TimeUtils.getNowFormatDate() + '.txt';
+        return this.handleTaskListPath + path.sep + TimeUtils.getNowFormatDate() + '.txt';
     }
 
     public getAudioSrcBasePath() {
@@ -118,7 +119,7 @@ export class DefaultCacheManager implements ICacheManager {
         return true;
     }
 
-    public saveFailTaskPath(path: string) {
+    public saveFailTaskPath(path: PhoneSessionModel) {
         let isExist = this.failHandleFileNameMap.has(path);
         let retryCount = 1;
         if (isExist) {
@@ -126,22 +127,19 @@ export class DefaultCacheManager implements ICacheManager {
             retryCount++;
         }
         this.failHandleFileNameMap.set(path, retryCount);
-
     }
 
     public getRetryModelsByToday(): PhoneSessionModel[] {
         let retryTasks: PhoneSessionModel[] = [];
-        this.failHandleFileNameMap.forEach((value, fileName, map) => {
-            if (value == this.retryCount) {
-                let model: PhoneSessionModel = new PhoneSessionModel();
-                model.buildModel({ fileName });
-                retryTasks.push(model);
+        this.failHandleFileNameMap.forEach((value, key, map) => {
+            if (value <= this.retryCount) {
+                retryTasks.push(key);
             }
         });
         return retryTasks;
     }
 
-    public removeFailTaskPath(path: string) {
+    public removeFailTaskPath(path: PhoneSessionModel) {
         let isExist = this.failHandleFileNameMap.has(path);
         if (isExist) {
             this.failHandleFileNameMap.delete(path);
@@ -165,20 +163,20 @@ export class DefaultCacheManager implements ICacheManager {
     }
 
     public removeAllTaskCacheByOneLoop() {
-        this.failHandleFileNameMap.clear();
-        FileUtils.rmdirOnlyFile(this.cacheResBasePath, [this.handleTaskListPath, this.translateTextPath]);
-        FileUtils.rmdirOnlyFile(this.audioSrcBasePath);
+        FileUtils.rmdirOnlyFile(this.cacheResBasePath, [this.handleTaskListPath, this.audioSrcBasePath, this.translateTextPath]);
+        // FileUtils.rmdirOnlyFile(this.audioSrcBasePath);
     }
 
     public removeAllTaskCacheByAtTime() {
         this.lastHandleFileNames.clear();
-        FileUtils.rmdirOnlyFile(this.handleTaskListPath);
+        this.failHandleFileNameMap.clear();
+        FileUtils.rmdirOnlyFile(this.handleTaskListPath, [this.audioSrcBasePath]);
     }
 
     public saveTranslateText(sessionModel: PhoneSessionModel, fileNameExcludeSuffix, translateTextArr: string[]) {
-        let translateTextPath = this.getTranslateTextPath() + '\\' + TimeUtils.getNowFormatDate();
+        let translateTextPath = this.getTranslateTextPath() + path.sep + TimeUtils.getNowFormatDate();
         !fs.existsSync(translateTextPath) && fs.mkdirSync(translateTextPath);
-        translateTextPath += '\\' + fileNameExcludeSuffix + '.txt';
+        translateTextPath += path.sep + fileNameExcludeSuffix + '.txt';
         fs.writeFileSync(translateTextPath, translateTextArr.join(os.EOL));
     }
 

@@ -7,7 +7,7 @@ var FileUtils = /** @class */ (function () {
     }
     FileUtils.rmdirOnlyFile = function (dir, excludeDirs) {
         if (excludeDirs === void 0) { excludeDirs = []; }
-        console.log('--------------------------------rmdirOnlyDir :', dir);
+        console.log('--------------------------------rmdirOnlyDir :', dir, ' excludeDirs:', excludeDirs);
         var arr = [dir];
         var current = undefined;
         var index = 0;

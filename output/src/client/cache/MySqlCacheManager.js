@@ -47,9 +47,10 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
 Object.defineProperty(exports, "__esModule", { value: true });
 var PhoneSessionModel_1 = require("../PhoneSessionModel");
 var DefaultCacheManager_1 = require("./DefaultCacheManager");
-var mysql = require('mysql');
 var node_fetch_1 = require("node-fetch");
 var fs = require("fs");
+var mysql = require('mysql');
+var path = require('path');
 var maxRecogniseCount = 2;
 var ISDEBUG = false;
 var MySqlCacheManager = /** @class */ (function (_super) {
@@ -146,15 +147,17 @@ var MySqlCacheManager = /** @class */ (function (_super) {
     };
     MySqlCacheManager.prototype.getNeedHandleFiles = function () {
         return __awaiter(this, void 0, void 0, function () {
-            var models, rsArr, promiseArr, _i, rsArr_1, ele, handleArr, groupPromise, _a, groupPromise_1, ele, rs, id, fileName, model;
+            var startTime, models, rsArr, promiseArr, _i, rsArr_1, ele, handleArr, groupPromise, _a, groupPromise_1, ele, rs, id, fileName, model;
             return __generator(this, function (_b) {
                 switch (_b.label) {
                     case 0:
+                        startTime = new Date().getTime() / 1000;
                         models = [];
                         return [4 /*yield*/, this.getAllUnTranslateList()];
                     case 1:
                         rsArr = _b.sent();
-                        console.log('getNeedHandleFiles rsArr:', rsArr);
+                        console.log('\r\n');
+                        console.log('---getNeedHandleFiles rsArr:', rsArr);
                         promiseArr = [];
                         Promise.all([]);
                         if (rsArr && rsArr.length > 0) {
@@ -167,7 +170,7 @@ var MySqlCacheManager = /** @class */ (function (_super) {
                         return [4 /*yield*/, Promise.all(promiseArr)];
                     case 2:
                         groupPromise = _b.sent();
-                        console.log('groupPromise:', groupPromise);
+                        console.log('---groupPromise:', groupPromise);
                         for (_a = 0, groupPromise_1 = groupPromise; _a < groupPromise_1.length; _a++) {
                             ele = groupPromise_1[_a];
                             rs = ele[0];
@@ -181,6 +184,8 @@ var MySqlCacheManager = /** @class */ (function (_super) {
                                 }
                             }
                         }
+                        console.log('---getNeedHandleFiles 从数据拿取数据,下载音频文件 cost time:', (new Date().getTime() / 1000 - startTime).toFixed(0), '秒');
+                        console.log('\r\n');
                         return [2 /*return*/, models];
                 }
             });
@@ -198,39 +203,48 @@ var MySqlCacheManager = /** @class */ (function (_super) {
         });
     };
     /**
-     *
      * @param url 返回filename
-     * @param path
+     * @param audioPath
      */
-    MySqlCacheManager.prototype.downLoadFileByUrl = function (id, url, path) {
-        if (path === void 0) { path = this.audioSrcBasePath; }
+    MySqlCacheManager.prototype.downLoadFileByUrl = function (id, url, audioPath) {
+        if (audioPath === void 0) { audioPath = this.audioSrcBasePath; }
         return __awaiter(this, void 0, void 0, function () {
             var fileName;
             return __generator(this, function (_a) {
                 fileName = url.substring(url.lastIndexOf('/') + 1, url.length);
-                path = path + "\\" + url.substring(url.lastIndexOf('/') + 1, url.length);
+                audioPath = audioPath + path.sep + url.substring(url.lastIndexOf('/') + 1, url.length);
+                console.log('fileName ', fileName, ' audioPath', audioPath);
                 return [2 /*return*/, node_fetch_1.default(url)
                         .then(function (res) {
                         return new Promise(function (resolve, reject) {
-                            var dest = fs.createWriteStream(path);
-                            res.body.pipe(dest);
-                            res.body.on('error', function (err) {
-                                console.log('downLoadFileByUrl body error ', err);
-                                fs.existsSync(path) && fs.unlinkSync(path);
+                            console.log('downLoadFileByUrl res', res.status);
+                            var responseHeader = res.headers;
+                            var contentType = responseHeader.get('Content-Type');
+                            console.log('downLoadFileByUrl contentType', contentType);
+                            if (contentType.toLowerCase().indexOf('audio') > -1) {
+                                var dest = fs.createWriteStream(audioPath);
+                                res.body.pipe(dest);
+                                res.body.on('error', function (err) {
+                                    console.log('downLoadFileByUrl body error ', err);
+                                    fs.existsSync(audioPath) && fs.unlinkSync(audioPath);
+                                    resolve(-1);
+                                });
+                                dest.on('finish', function () {
+                                    resolve([id, fileName]);
+                                });
+                                dest.on('error', function (err) {
+                                    console.log('downLoadFileByUrl dest error ', err);
+                                    fs.existsSync(audioPath) && fs.unlinkSync(audioPath);
+                                    resolve(-1);
+                                });
+                            }
+                            else {
                                 resolve(-1);
-                            });
-                            dest.on('finish', function () {
-                                resolve([id, fileName]);
-                            });
-                            dest.on('error', function (err) {
-                                console.log('downLoadFileByUrl dest error ', err);
-                                fs.existsSync(path) && fs.unlinkSync(path);
-                                resolve(-1);
-                            });
+                            }
                         });
                     }, function (rj) {
-                        fs.existsSync(path) && fs.unlinkSync(path);
-                        console.log('downLoadFileByUrl catch path', path, ' rj', rj);
+                        fs.existsSync(audioPath) && fs.unlinkSync(audioPath);
+                        console.log('downLoadFileByUrl catch path', audioPath, ' rj', rj);
                         return new Promise(function (resolve, reject) {
                             resolve(-1);
                         });

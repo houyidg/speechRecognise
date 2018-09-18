@@ -5,7 +5,8 @@ var FileUtils_1 = require("./../../util/FileUtils");
 var fs = require("fs");
 var os = require("os");
 var TimeUtils_1 = require("../../util/TimeUtils");
-var isDebug = false;
+var path = require('path');
+var isDebug = true;
 var DefaultCacheManager = /** @class */ (function () {
     function DefaultCacheManager() {
         this.retryCount = 1;
@@ -44,7 +45,7 @@ var DefaultCacheManager = /** @class */ (function () {
             if (_this.lastHandleFileNames.has(fileName)) {
                 return false;
             }
-            var absolutePath = _this.getAudioSrcBasePath() + "\\" + fileName;
+            var absolutePath = "" + _this.getAudioSrcBasePath() + path.sep + fileName;
             var stat = fs.lstatSync(absolutePath);
             if (!stat.isFile()) {
                 isDebug && console.log('filter ', fileName, '  !stat.isFile():', !stat.isFile());
@@ -70,7 +71,7 @@ var DefaultCacheManager = /** @class */ (function () {
         return newMeetModels;
     };
     DefaultCacheManager.prototype.getTodayCacheTaskPath = function () {
-        return this.handleTaskListPath + '\\' + TimeUtils_1.TimeUtils.getNowFormatDate() + '.txt';
+        return this.handleTaskListPath + path.sep + TimeUtils_1.TimeUtils.getNowFormatDate() + '.txt';
     };
     DefaultCacheManager.prototype.getAudioSrcBasePath = function () {
         return this.audioSrcBasePath;
@@ -118,11 +119,9 @@ var DefaultCacheManager = /** @class */ (function () {
     DefaultCacheManager.prototype.getRetryModelsByToday = function () {
         var _this = this;
         var retryTasks = [];
-        this.failHandleFileNameMap.forEach(function (value, fileName, map) {
-            if (value == _this.retryCount) {
-                var model = new PhoneSessionModel_1.PhoneSessionModel();
-                model.buildModel({ fileName: fileName });
-                retryTasks.push(model);
+        this.failHandleFileNameMap.forEach(function (value, key, map) {
+            if (value <= _this.retryCount) {
+                retryTasks.push(key);
             }
         });
         return retryTasks;
@@ -148,18 +147,18 @@ var DefaultCacheManager = /** @class */ (function () {
         this.lastHandleFileNames.delete(path);
     };
     DefaultCacheManager.prototype.removeAllTaskCacheByOneLoop = function () {
-        this.failHandleFileNameMap.clear();
-        FileUtils_1.FileUtils.rmdirOnlyFile(this.cacheResBasePath, [this.handleTaskListPath, this.translateTextPath]);
-        FileUtils_1.FileUtils.rmdirOnlyFile(this.audioSrcBasePath);
+        FileUtils_1.FileUtils.rmdirOnlyFile(this.cacheResBasePath, [this.handleTaskListPath, this.audioSrcBasePath, this.translateTextPath]);
+        // FileUtils.rmdirOnlyFile(this.audioSrcBasePath);
     };
     DefaultCacheManager.prototype.removeAllTaskCacheByAtTime = function () {
         this.lastHandleFileNames.clear();
-        FileUtils_1.FileUtils.rmdirOnlyFile(this.handleTaskListPath);
+        this.failHandleFileNameMap.clear();
+        FileUtils_1.FileUtils.rmdirOnlyFile(this.handleTaskListPath, [this.audioSrcBasePath]);
     };
     DefaultCacheManager.prototype.saveTranslateText = function (sessionModel, fileNameExcludeSuffix, translateTextArr) {
-        var translateTextPath = this.getTranslateTextPath() + '\\' + TimeUtils_1.TimeUtils.getNowFormatDate();
+        var translateTextPath = this.getTranslateTextPath() + path.sep + TimeUtils_1.TimeUtils.getNowFormatDate();
         !fs.existsSync(translateTextPath) && fs.mkdirSync(translateTextPath);
-        translateTextPath += '\\' + fileNameExcludeSuffix + '.txt';
+        translateTextPath += path.sep + fileNameExcludeSuffix + '.txt';
         fs.writeFileSync(translateTextPath, translateTextArr.join(os.EOL));
     };
     return DefaultCacheManager;

@@ -42,7 +42,8 @@ var fs = require("fs");
 var moment = require("moment");
 var child_process_1 = require("child_process");
 var config_1 = require("../../config");
-var isDebug = false;
+var isDebug = true;
+var path = require('path');
 var RecongniseSpeechErrorByDivision = '-RecongniseSpeechErrorByDivision-';
 var RecongniseSpeechErrorByTransForm = '-RecongniseSpeechErrorByTransForm-';
 var RecongniseSpeechErrorByBaiduApi = '-RecongniseSpeechErrorByBaiduApi-';
@@ -75,7 +76,7 @@ var BaiDuOneSentenceClient = /** @class */ (function () {
         this.qps = 8; //api 可达最大并发度
     }
     BaiDuOneSentenceClient.prototype.prepare = function (_a) {
-        var _b = _a.cacheResBasePath, cacheResBasePath = _b === void 0 ? process.cwd() + "\\asset" : _b, _c = _a.audioSrcBasePath, audioSrcBasePath = _c === void 0 ? cacheResBasePath + "\\audio" : _c, _d = _a.divisionPath, divisionPath = _d === void 0 ? cacheResBasePath + "\\divisionCache" : _d, _e = _a.transformPath, transformPath = _e === void 0 ? cacheResBasePath + "\\transformCache" : _e, _f = _a.translateTextPath, translateTextPath = _f === void 0 ? cacheResBasePath + "\\translateTexts" : _f, _g = _a.handleTaskPath, handleTaskPath = _g === void 0 ? cacheResBasePath + "\\cacheAudioPath" : _g;
+        var _b = _a.cacheResBasePath, cacheResBasePath = _b === void 0 ? process.cwd() + path.sep + "asset" : _b, _c = _a.audioSrcBasePath, audioSrcBasePath = _c === void 0 ? cacheResBasePath + path.sep + "audio" : _c, _d = _a.divisionPath, divisionPath = _d === void 0 ? cacheResBasePath + path.sep + "divisionCache" : _d, _e = _a.transformPath, transformPath = _e === void 0 ? cacheResBasePath + path.sep + "transformCache" : _e, _f = _a.translateTextPath, translateTextPath = _f === void 0 ? cacheResBasePath + path.sep + "translateTexts" : _f, _g = _a.handleTaskPath, handleTaskPath = _g === void 0 ? cacheResBasePath + path.sep + "audioPathCache" : _g;
         this.cacheManager = new MySqlCacheManager_1.MySqlCacheManager();
         this.cacheManager.init({ audioSrcBasePath: audioSrcBasePath, cacheResBasePath: cacheResBasePath, handleTaskPath: handleTaskPath, divisionPath: divisionPath, transformPath: transformPath, translateTextPath: translateTextPath });
         // 新建一个对象，建议只保存一个对象调用服务接口
@@ -127,26 +128,28 @@ var BaiDuOneSentenceClient = /** @class */ (function () {
     };
     BaiDuOneSentenceClient.prototype.handle = function () {
         return __awaiter(this, void 0, void 0, function () {
-            var meetModels, retryModels, startTime, _loop_1, this_1;
+            var meetModels, retryModels, startTime, _loop_1, this_1, _a;
             var _this = this;
-            return __generator(this, function (_a) {
-                switch (_a.label) {
+            return __generator(this, function (_b) {
+                switch (_b.label) {
                     case 0:
+                        console.log('\r\n');
+                        console.log('------------------------start handle------------------------------');
                         retryModels = [];
                         startTime = new Date().getTime() / 1000;
                         _loop_1 = function () {
-                            var needHandleTasks, taskPromiseArr, concurrenceCount, _loop_2, index, startTime_1;
+                            var needHandleTasks, concurrenceCount, taskPromiseArr, _loop_2, index, startTime_1;
                             return __generator(this, function (_a) {
                                 switch (_a.label) {
                                     case 0:
                                         meetModels.splice.apply(meetModels, [meetModels.length, 0].concat(retryModels));
-                                        console.log('--------------------------------start all Task  总共需要执行的任务:', meetModels.length, ' 包含重试的任务:', retryModels.length, ' \n:', meetModels);
                                         console.log('\n\r');
+                                        console.log('--------------------------------loop Task  总共需要执行的任务:', meetModels.length, ' 包含重试的任务:', retryModels.length, ' \n:', meetModels);
                                         retryModels = [];
                                         needHandleTasks = meetModels.splice(0, Math.min(this_1.qps, meetModels.length));
-                                        taskPromiseArr = [];
                                         concurrenceCount = needHandleTasks.length;
                                         console.log('start 建立并发通道数:', concurrenceCount);
+                                        taskPromiseArr = [];
                                         _loop_2 = function (index) {
                                             var needModel = needHandleTasks[index];
                                             var rs = this_1.assembleTask(needModel, function () {
@@ -183,17 +186,23 @@ var BaiDuOneSentenceClient = /** @class */ (function () {
                             });
                         };
                         this_1 = this;
-                        _a.label = 1;
-                    case 1: return [4 /*yield*/, this.cacheManager.getNeedHandleFiles()];
+                        _b.label = 1;
+                    case 1:
+                        _a = retryModels.length > 0;
+                        if (_a) return [3 /*break*/, 3];
+                        return [4 /*yield*/, this.cacheManager.getNeedHandleFiles()];
                     case 2:
-                        if (!((meetModels = _a.sent()).length > 0 || retryModels.length > 0)) return [3 /*break*/, 4];
-                        return [5 /*yield**/, _loop_1()];
+                        _a = (meetModels = _b.sent()).length > 0;
+                        _b.label = 3;
                     case 3:
-                        _a.sent();
-                        return [3 /*break*/, 1];
+                        if (!_a) return [3 /*break*/, 5];
+                        return [5 /*yield**/, _loop_1()];
                     case 4:
+                        _b.sent();
+                        return [3 /*break*/, 1];
+                    case 5:
                         this.cacheManager.removeAllTaskCacheByAtTime();
-                        console.log('-----------------------------------------end all Task cost time:', (new Date().getTime() / 1000 - startTime).toFixed(0), '秒');
+                        console.log('-----------------------------------------end handle all Task cost time:', (new Date().getTime() / 1000 - startTime).toFixed(0), '秒');
                         console.log('\n\r');
                         return [2 /*return*/];
                 }
@@ -205,7 +214,7 @@ var BaiDuOneSentenceClient = /** @class */ (function () {
         var _this = this;
         var startTime = new Date().getTime() / 1000;
         var fileName = sessionModel.fileName;
-        var absolutePath = this.cacheManager.getAudioSrcBasePath() + "\\" + fileName;
+        var absolutePath = "" + this.cacheManager.getAudioSrcBasePath() + path.sep + fileName;
         var suffix = fileName.substring(fileName.lastIndexOf('.') + 1, fileName.length);
         var fileNameExcludeSuffix = fileName.replace(suffix, '').replace('.', '');
         var audioData = fs.readFileSync(absolutePath);
@@ -213,14 +222,14 @@ var BaiDuOneSentenceClient = /** @class */ (function () {
         console.log('----------------start task  fileName：', fileName, ' suffix:', suffix, '  audio.length:', this.getAudioLen(audioData), ' ----------------');
         //real do 
         return this.startHandleSingleVoice({ sessionModel: sessionModel, absolutePath: absolutePath, fileNameExcludeSuffix: fileNameExcludeSuffix, suffix: suffix, isMp3: isMp3 }).then(function (rs) {
-            _this.cacheManager.removeFailTaskPath(fileName);
+            _this.cacheManager.removeFailTaskPath(sessionModel);
             var endTime = new Date().getTime() / 1000;
             console.log('----------------end task fileName：', fileName, ' cost time: ', (endTime - startTime).toFixed(0), '秒 startHandleSingleVoice rs：', JSON.stringify(rs), ' ----------------');
             //continue add task 
             if (nextTaskCallback)
                 return nextTaskCallback();
         }, function (e) {
-            _this.cacheManager.saveFailTaskPath(fileName);
+            _this.cacheManager.saveFailTaskPath(sessionModel);
             var endTime = new Date().getTime() / 1000;
             console.log('----------------end task catch fileName：', fileName, '  cost time: ', (endTime - startTime).toFixed(0), '秒 startHandleSingleVoice error：', JSON.stringify(e), ' ----------------');
             if (nextTaskCallback)
@@ -255,7 +264,7 @@ var BaiDuOneSentenceClient = /** @class */ (function () {
                                         nextTime = timeQuanTum[index + 1];
                                         duration = TimeUtils_1.TimeUtils.getMinDuration(startTime, nextTime);
                                         srcPath = absolutePath;
-                                        divisionPath = this_2.cacheManager.getDivisionPath() + '\\' + fileNameExcludeSuffix + '_division_' + index + '.' + suffix;
+                                        divisionPath = this_2.cacheManager.getDivisionPath() + path.sep + fileNameExcludeSuffix + '_division_' + index + '.' + suffix;
                                         nextPath = divisionPath;
                                         return [4 /*yield*/, this_2.divisionVoiceByTime({ startTime: startTime, duration: duration, srcPath: srcPath, divisionPath: divisionPath })
                                                 .then(function (rs) {
@@ -265,7 +274,7 @@ var BaiDuOneSentenceClient = /** @class */ (function () {
                                                 }
                                                 else {
                                                     //change pcm
-                                                    var transformPath = _this.cacheManager.getTransformPath() + '\\' + fileNameExcludeSuffix + '_transform_' + index + '.pcm';
+                                                    var transformPath = _this.cacheManager.getTransformPath() + path.sep + fileNameExcludeSuffix + '_transform_' + index + '.pcm';
                                                     nextPath = transformPath;
                                                     newSuffix = 'pcm';
                                                     return _this.transformMp3ToPcm({ divisionPath: divisionPath, transformPath: transformPath });

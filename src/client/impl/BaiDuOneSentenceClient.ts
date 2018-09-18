@@ -11,6 +11,7 @@ import { ISpeechRecongniseClient } from "../ISpeechRecongnise";
 import { exec } from "child_process";
 import { BAIDU_CONFIG } from '../../config';
 const isDebug = false;
+const path = require('path');
 const RecongniseSpeechErrorByDivision = '-RecongniseSpeechErrorByDivision-';
 const RecongniseSpeechErrorByTransForm = '-RecongniseSpeechErrorByTransForm-';
 const RecongniseSpeechErrorByBaiduApi = '-RecongniseSpeechErrorByBaiduApi-';
@@ -46,12 +47,12 @@ export class BaiDuOneSentenceClient implements ISpeechRecongniseClient {
     qps = 8;//api 可达最大并发度
 
     public prepare({
-        cacheResBasePath = process.cwd() + "\\asset",
-        audioSrcBasePath = cacheResBasePath + "\\audio",
-        divisionPath = cacheResBasePath + "\\divisionCache",
-        transformPath = cacheResBasePath + "\\transformCache",
-        translateTextPath = cacheResBasePath + "\\translateTexts",
-        handleTaskPath = cacheResBasePath + "\\audioPathCache" }) {//准备环境
+        cacheResBasePath = process.cwd() + path.sep + "asset",
+        audioSrcBasePath = cacheResBasePath + path.sep + "audio",
+        divisionPath = cacheResBasePath + path.sep + "divisionCache",
+        transformPath = cacheResBasePath + path.sep + "transformCache",
+        translateTextPath = cacheResBasePath + path.sep + "translateTexts",
+        handleTaskPath = cacheResBasePath + path.sep + "audioPathCache" }) {//准备环境
         this.cacheManager = new MySqlCacheManager();
         this.cacheManager.init({ audioSrcBasePath, cacheResBasePath, handleTaskPath, divisionPath, transformPath, translateTextPath });
         // 新建一个对象，建议只保存一个对象调用服务接口
@@ -99,18 +100,20 @@ export class BaiDuOneSentenceClient implements ISpeechRecongniseClient {
     }
 
     private async handle() {
+        console.log('\r\n');
+        console.log('------------------------start handle------------------------------');
         let meetModels: PhoneSessionModel[];
         let retryModels: PhoneSessionModel[] = [];
         let startTime = new Date().getTime() / 1000;
-        while ((meetModels = await this.cacheManager.getNeedHandleFiles()).length > 0 || retryModels.length > 0) {
+        while (retryModels.length > 0 || (meetModels = await this.cacheManager.getNeedHandleFiles()).length > 0) {
             meetModels.splice(meetModels.length, 0, ...retryModels);
-            console.log('--------------------------------start all Task  总共需要执行的任务:', meetModels.length, ' 包含重试的任务:', retryModels.length, ' \n:', meetModels);
             console.log('\n\r');
+            console.log('--------------------------------loop Task  总共需要执行的任务:', meetModels.length, ' 包含重试的任务:', retryModels.length, ' \n:', meetModels);
             retryModels = [];
             let needHandleTasks = meetModels.splice(0, Math.min(this.qps, meetModels.length));
-            let taskPromiseArr = [];
             let concurrenceCount = needHandleTasks.length;
             console.log('start 建立并发通道数:', concurrenceCount);
+            let taskPromiseArr = [];
             for (let index = 0; index < concurrenceCount; index++) {
                 let needModel = needHandleTasks[index];
                 let rs = this.assembleTask(needModel, () => {
@@ -138,14 +141,14 @@ export class BaiDuOneSentenceClient implements ISpeechRecongniseClient {
             this.cacheManager.removeAllTaskCacheByOneLoop();
         }
         this.cacheManager.removeAllTaskCacheByAtTime();
-        console.log('-----------------------------------------end all Task cost time:', (new Date().getTime() / 1000 - startTime).toFixed(0), '秒');
+        console.log('-----------------------------------------end handle all Task cost time:', (new Date().getTime() / 1000 - startTime).toFixed(0), '秒');
         console.log('\n\r');
     }
     //nextModel
     assembleTask(sessionModel: PhoneSessionModel, nextTaskCallback) {
         let startTime = new Date().getTime() / 1000;
         let fileName = sessionModel.fileName;
-        let absolutePath = `${this.cacheManager.getAudioSrcBasePath()}\\${fileName}`;
+        let absolutePath = `${this.cacheManager.getAudioSrcBasePath()}${path.sep}${fileName}`;
         let suffix = fileName.substring(fileName.lastIndexOf('.') + 1, fileName.length);
         let fileNameExcludeSuffix = fileName.replace(suffix, '').replace('.', '');
         let audioData = fs.readFileSync(absolutePath);
@@ -153,14 +156,14 @@ export class BaiDuOneSentenceClient implements ISpeechRecongniseClient {
         console.log('----------------start task  fileName：', fileName, ' suffix:', suffix, '  audio.length:', this.getAudioLen(audioData), ' ----------------');
         //real do 
         return this.startHandleSingleVoice({ sessionModel, absolutePath, fileNameExcludeSuffix, suffix, isMp3 }).then((rs) => {
-            this.cacheManager.removeFailTaskPath(fileName);
+            this.cacheManager.removeFailTaskPath(sessionModel);
             let endTime = new Date().getTime() / 1000;
             console.log('----------------end task fileName：', fileName, ' cost time: ', (endTime - startTime).toFixed(0), '秒 startHandleSingleVoice rs：', JSON.stringify(rs), ' ----------------');
             //continue add task 
             if (nextTaskCallback)
                 return nextTaskCallback();
         }, (e) => {
-            this.cacheManager.saveFailTaskPath(fileName);
+            this.cacheManager.saveFailTaskPath(sessionModel);
             let endTime = new Date().getTime() / 1000;
             console.log('----------------end task catch fileName：', fileName, '  cost time: ', (endTime - startTime).toFixed(0), '秒 startHandleSingleVoice error：', JSON.stringify(e), ' ----------------');
             if (nextTaskCallback)
@@ -184,7 +187,7 @@ export class BaiDuOneSentenceClient implements ISpeechRecongniseClient {
                 let nextTime = timeQuanTum[index + 1];
                 let duration = TimeUtils.getMinDuration(startTime, nextTime);
                 let srcPath = absolutePath;
-                let divisionPath = this.cacheManager.getDivisionPath() + '\\' + fileNameExcludeSuffix + '_division_' + index + '.' + suffix;
+                let divisionPath = this.cacheManager.getDivisionPath() + path.sep + fileNameExcludeSuffix + '_division_' + index + '.' + suffix;
                 let nextPath = divisionPath;
                 //division
                 let rs = await this.divisionVoiceByTime({ startTime, duration, srcPath, divisionPath })
@@ -194,7 +197,7 @@ export class BaiDuOneSentenceClient implements ISpeechRecongniseClient {
                             return new Promise((rs, rj) => { rs(1); });
                         } else {
                             //change pcm
-                            let transformPath = this.cacheManager.getTransformPath() + '\\' + fileNameExcludeSuffix + '_transform_' + index + '.pcm';
+                            let transformPath = this.cacheManager.getTransformPath() + path.sep + fileNameExcludeSuffix + '_transform_' + index + '.pcm';
                             nextPath = transformPath;
                             newSuffix = 'pcm';
                             return this.transformMp3ToPcm({ divisionPath, transformPath });

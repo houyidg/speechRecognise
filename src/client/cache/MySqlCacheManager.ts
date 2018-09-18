@@ -1,8 +1,9 @@
 import { PhoneSessionModel } from '../PhoneSessionModel';
 import { DefaultCacheManager } from './DefaultCacheManager';
-const mysql = require('mysql');
 import fetch from 'node-fetch';
 import * as fs from "fs";
+const mysql = require('mysql');
+const path = require('path');
 const maxRecogniseCount = 2;
 const ISDEBUG = false;
 export class MySqlCacheManager extends DefaultCacheManager {
@@ -77,9 +78,11 @@ export class MySqlCacheManager extends DefaultCacheManager {
     }
 
     public async getNeedHandleFiles() {
+        let startTime = new Date().getTime() / 1000;
         let models: PhoneSessionModel[] = [];
         let rsArr = await this.getAllUnTranslateList();
-        console.log('getNeedHandleFiles rsArr:', rsArr);
+        console.log('\r\n');
+        console.log('---getNeedHandleFiles rsArr:', rsArr);
         let promiseArr = [];
         Promise.all([]);
         if (rsArr && rsArr.length > 0) {
@@ -89,7 +92,7 @@ export class MySqlCacheManager extends DefaultCacheManager {
             }
         }
         let groupPromise = await Promise.all(promiseArr);
-        console.log('groupPromise:', groupPromise);
+        console.log('---groupPromise:', groupPromise);
         for (let ele of groupPromise) {
             let rs = ele[0];
             if (rs != -1) {
@@ -102,6 +105,8 @@ export class MySqlCacheManager extends DefaultCacheManager {
                 }
             }
         }
+        console.log('---getNeedHandleFiles 从数据拿取数据,下载音频文件 cost time:', (new Date().getTime() / 1000 - startTime).toFixed(0), '秒');
+        console.log('\r\n');
         return models;
         // return super.getNeedHandleFiles();
     }
@@ -113,37 +118,45 @@ export class MySqlCacheManager extends DefaultCacheManager {
     }
 
     /**
-     * 
      * @param url 返回filename
-     * @param path 
+     * @param audioPath 
      */
-    private async downLoadFileByUrl(id, url: string, path = this.audioSrcBasePath): Promise<string> {
+    private async downLoadFileByUrl(id, url: string, audioPath = this.audioSrcBasePath): Promise<string> {
         let fileName = url.substring(url.lastIndexOf('/') + 1, url.length);
-        path = path + "\\" + url.substring(url.lastIndexOf('/') + 1, url.length);
+        audioPath = audioPath + path.sep + url.substring(url.lastIndexOf('/') + 1, url.length);
+        console.log('fileName ', fileName, ' audioPath', audioPath);
         return fetch(url)
             .then(
                 (res) => {
                     return new Promise((resolve, reject) => {
-                        const dest = fs.createWriteStream(path);
-                        res.body.pipe(dest);
-                        res.body.on('error', err => {
-                            console.log('downLoadFileByUrl body error ', err);
-                            fs.existsSync(path) && fs.unlinkSync(path);
+                        console.log('downLoadFileByUrl res', res.status);
+                        let responseHeader = res.headers;
+                        let contentType: string = responseHeader.get('Content-Type');
+                        console.log('downLoadFileByUrl contentType', contentType);
+                        if (contentType.toLowerCase().indexOf('audio') > -1) {
+                            const dest = fs.createWriteStream(audioPath);
+                            res.body.pipe(dest);
+                            res.body.on('error', err => {
+                                console.log('downLoadFileByUrl body error ', err);
+                                fs.existsSync(audioPath) && fs.unlinkSync(audioPath);
+                                resolve(-1);
+                            });
+                            dest.on('finish', () => {
+                                resolve([id, fileName]);
+                            });
+                            dest.on('error', err => {
+                                console.log('downLoadFileByUrl dest error ', err);
+                                fs.existsSync(audioPath) && fs.unlinkSync(audioPath);
+                                resolve(-1);
+                            });
+                        } else {
                             resolve(-1);
-                        });
-                        dest.on('finish', () => {
-                            resolve([id, fileName]);
-                        });
-                        dest.on('error', err => {
-                            console.log('downLoadFileByUrl dest error ', err);
-                            fs.existsSync(path) && fs.unlinkSync(path);
-                            resolve(-1);
-                        });
+                        }
                     });
                 },
                 (rj) => {
-                    fs.existsSync(path) && fs.unlinkSync(path);
-                    console.log('downLoadFileByUrl catch path', path, ' rj', rj);
+                    fs.existsSync(audioPath) && fs.unlinkSync(audioPath);
+                    console.log('downLoadFileByUrl catch path', audioPath, ' rj', rj);
                     return new Promise((resolve, reject) => {
                         resolve(-1);
                     });

@@ -19,10 +19,10 @@ export interface ICacheManager {
      * return true 代表已经在处理或者处理完成， false 
      */
     isSaveTaskPath(path: string): boolean;
-    saveFailTaskPath(path: string);
+    saveFailTaskPath(path: PhoneSessionModel);
     removeLastTaskPathOnlyCache(path: string);
     removeLastTaskPathOnlyFile(path: string);
-    removeFailTaskPath(path: string);
+    removeFailTaskPath(path: PhoneSessionModel);
     getRetryModelsByToday(): PhoneSessionModel[];
     removeAllTaskCacheByOneLoop();//remove 这次loop
     removeAllTaskCacheByAtTime();//remove 这次调度(多次loop)
