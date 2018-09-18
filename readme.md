@@ -1,43 +1,82 @@
-ffmpeg -ss 00:00:00 -t 00:00:05 -i "C:\Users\Administrator\Documents\Tencent Files\511700417\FileRecv\MobileFile\BIG.wav"  -vcodec copy -acodec copy output2.wav
+# 一句话语音识别
 
-ffmpeg -i "C:\Users\Administrator\Documents\Tencent Files\511700417\FileRecv\MobileFile\BIG.wav"
+## node环境 10.9.0
+## 百度一句话识别支持
+语音识别仅支持以下格式 ：pcm（不压缩）、wav（不压缩，pcm编码）、amr（有损压缩格式）；8k/16k 采样率 16bit 位深的单声道。即：
 
-  CREATE TABLE IF NOT EXISTS `call_center_data`.`call_history` (
-  `id` int(11) NOT NULL COMMENT '自增主键',
-  `call_sheet_id` int(11) NOT NULL DEFAULT '0' COMMENT '通话记录的ID',
-  `call_id` int(11) NOT NULL DEFAULT '0' COMMENT '通话ID',
-  `call_type` varchar(45) NOT NULL DEFAULT '' COMMENT '呼叫类型包括 : normal普通来电 , dialout外呼通话 , transfer转接电话 , dialtransfer外呼转接',
-  `call_no` varchar(255) NOT NULL DEFAULT '' COMMENT '主叫号码',
-  `called_no` varchar(255) NOT NULL DEFAULT '' COMMENT '被叫号码',
-  `ring` datetime DEFAULT NULL COMMENT '开始呼叫时间',
-  `ringing_time` datetime DEFAULT NULL COMMENT '响铃时间',
-  `begin` datetime DEFAULT NULL COMMENT '摘机接通时间',
-  `end` datetime DEFAULT NULL COMMENT '通话结束时间',
-  `queue_time` datetime DEFAULT NULL COMMENT '呼入来电进入技能组时间',
-  `queue` varchar(45) NOT NULL DEFAULT '' COMMENT '呼入来电进入的技能组',
-  `agent` varchar(45) NOT NULL DEFAULT '' COMMENT '坐席登录名',
-  `exten` varchar(45) NOT NULL DEFAULT '' COMMENT '坐席工号',
-  `state` varchar(45) NOT NULL DEFAULT '' COMMENT '通话记录状态 : 已接听[dealing] , 振铃未接听[notDeal] , 已留言[voicemail] ,黑名单[blackList] , 排队放弃[queueLeak] , ivr [leak]',
-  `monitor_filename` varchar(255) NOT NULL DEFAULT '' COMMENT '录音文件链接地址',
-  `pbx` varchar(45) NOT NULL DEFAULT '' COMMENT '账户所在的PBX',
-  `agent_name` varchar(45) NOT NULL DEFAULT '' COMMENT '坐席姓名',
-  `call_state` varchar(45) NOT NULL DEFAULT '' COMMENT '事件状态 : Ring , Ringing , Link , Hangup ( Unlink也当成Hangup处理 )',
-  `province` varchar(45) NOT NULL DEFAULT '' COMMENT '省份',
-  `district` varchar(45) NOT NULL DEFAULT '' COMMENT '市区',
-  `ivr_key` varchar(45) NOT NULL DEFAULT '' COMMENT 'ivr按键值',
-  `call_content_baidu` mediumtext COMMENT '通话内容：语音转文本',
-  `call_content_ali` mediumtext COMMENT '通话内容：语音转文本',
-  `baidu_recognise_count` int(11) NOT NULL DEFAULT '0' COMMENT '百度语音识别次数',
-  `ali_recognise_count` int(11) NOT NULL DEFAULT '0' COMMENT '阿里语音识别次数',
-  `oss_url`  varchar(255) COMMENT '音频文件存储在oss上的地址',
-  `create_time` datetime DEFAULT NULL,
-  `update_time` datetime DEFAULT NULL COMMENT '修改时间',
-  PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='通话记录历史表';
- 
+pcm wav amr 格式三选一。 正常情况请使用pcm。其中wav格式需要使用pcm编码。
+采用率二选一 8000 或者 16000。正常情况请使用16000
+单声道
 
- insert into `call_center_data`.`call_history`(`id`,`monitor_filename`,`create_time`) values(1,'https://github.com/houyidg/speechRecognise/raw/httpbranch/temp%20-%20%E5%89%AF%E6%9C%AC/20161018145623_1006_18081970722.mp3','20180901');
-insert into `call_center_data`.`call_history`(`id`,`monitor_filename`,`create_time`) values(2,'https://github.com/houyidg/speechRecognise/raw/httpbranch/temp%20-%20%E5%89%AF%E6%9C%AC/20161018150712_1006_13550498866.mp3','20180201');
-insert into `call_center_data`.`call_history`(`id`,`monitor_filename`,`create_time`) values(3,'https://github.com/houyidg/speechRecognise/raw/httpbranch/temp%20-%20%E5%89%AF%E6%9C%AC/20161019090603_1005_18081970722.mp3','20170901');
-insert into `call_center_data`.`call_history`(`id`,`monitor_filename`,`create_time`) values(4,'https://github.com/houyidg/speechRecognise/raw/httpbranch/temp%20-%20%E5%89%AF%E6%9C%AC/20161020145043_1006_15902875896.mp3','20160901');
+## pcm文件音频时长计算
+和图像bmp文件一样，[cm文件保存的是未压缩的音频信息。16bits编码是指，每次采样的音频信息用2字节保存。可以对比下bmp文件用分别RGB颜色的信息。16000采样率是指1秒钟采样16000次。常见的音频是44100HZ，即一秒采样44100次。单声道：只有一个声道。
 
+根据这些信息，我们可以计算：1秒的16000采样率音频文件大小是2*16000= 32000字节，约为32k = 1秒。
+
+
+## ffmpeg获取音频时长
+ffmpeg -i 20161017141228_1004_18583386261.mp3 2>&1 | grep 'Duration' | cut -d ' ' -f 4 | sed s/,//
+
+
+## ffmpeg切割音频
+ffmpeg -i 20161017141228_1004_18583386261.mp3 -ss 00:00:00 -t 00:00:30 -acodec copy output.mp3 
+
+参数说明： 
+-ss : 指定从那裡开始 
+-t : 指定到那裡结束 
+-acodec copy : 编码格式和来源档桉相同（就是mp3） 
+
+
+## ffmpeg转换mp3为pcm
+ffmpeg -y  -i aidemo.mp3  -acodec pcm_s16le -f s16le -ac 1 -ar 16000 16k.pcm 
+
+## nodejs package
+package-lock.json是当 node_modules 或 package.json 发生变化时自动生成的文件。这个文件主要功能是确定当前安装的包的依赖，以便后续重新安装的时候生成相同的依赖，而忽略项目开发过程中有些依赖已经发生的更新。
+
+
+## 音频文件格式转换
+https://ffmpeg.zeranoe.com/builds/
+
+http://ai.baidu.com/docs#/ASR-Tool-convert/top
+
+## 安装TypeScript，命令行运行：
+npm install -g typescript
+
+## 安装fetch
+npm install node-fetch --save
+## npm 安装百度语音识别sdk
+npm install baidu-aip-sdk
+## 安装日期库
+npm install --save moment
+## How to find module “fs” in MS Code with TypeScript?、
+
+You need to include the definition file for node.
+
+TypeScript 2.0+
+
+Install using npm:
+
+npm install --save-dev @types/node
+TypeScript < 2.0
+
+If you use typings then you can run this command:
+
+typings install dt~node --global --save
+Or if you are using typings < 1.0 run:
+
+typings install node --ambient --save
+
+## ts编译的js输出目录在tsconfig中配置
+
+## nodejs process.cwd():当前项目的执行路径
+
+## nodejs replace全局字符 .replace(/word/g, 'xx')  replace(new RegExp("/","gm"), '\\');
+
+## 修改cmd编码为utf-8 CHCP 65001
+
+## ts Never
+never类型表示的是那些永不存在的值的类型。 例如，never类型是那些总是会抛出异常或根本就不会有返回值的函数表达式或箭头函数表达式的返回值类型； 变量也可能是never类型，当它们被永不为真的类型保护所约束时。
+
+## github下载链接
+https://github.com/houyidg/speechRecognise/raw/httpbranch/temp/20161018145623_1006_18081970722.mp3
+https://github.com/houyidg/speechRecognise/blob/httpbranch/temp/20161018145623_1006_18081970722.mp3
