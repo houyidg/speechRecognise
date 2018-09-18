@@ -23,14 +23,14 @@ export class DefaultCacheManager implements ICacheManager {
         this.lastHandleFileNames = new Set();
         this.failHandleFileNameMap = new Map();
 
-        this.audioSrcBasePath = audioSrcBasePath;
         this.cacheResBasePath = cacheResBasePath;
+        this.audioSrcBasePath = audioSrcBasePath;
         this.handleTaskListPath = handleTaskPath;
         this.divisionPath = divisionPath;
         this.transformPath = transformPath;
         this.translateTextPath = translateTextPath;
-        !fs.existsSync(audioSrcBasePath) && fs.mkdirSync(audioSrcBasePath);
         !fs.existsSync(cacheResBasePath) && fs.mkdirSync(cacheResBasePath);
+        !fs.existsSync(audioSrcBasePath) && fs.mkdirSync(audioSrcBasePath);
         !fs.existsSync(handleTaskPath) && fs.mkdirSync(handleTaskPath);
         !fs.existsSync(divisionPath) && fs.mkdirSync(divisionPath);
         !fs.existsSync(transformPath) && fs.mkdirSync(transformPath);
@@ -166,12 +166,13 @@ export class DefaultCacheManager implements ICacheManager {
 
     public removeAllTaskCacheByOneLoop() {
         this.failHandleFileNameMap.clear();
-        FileUtils.rmdirOnlyFile(this.cacheResBasePath, this.handleTaskListPath);
+        FileUtils.rmdirOnlyFile(this.cacheResBasePath, [this.handleTaskListPath, this.translateTextPath]);
+        FileUtils.rmdirOnlyFile(this.audioSrcBasePath);
     }
 
     public removeAllTaskCacheByAtTime() {
         this.lastHandleFileNames.clear();
-        FileUtils.rmdirOnlyFile(this.handleTaskListPath, null);
+        FileUtils.rmdirOnlyFile(this.handleTaskListPath);
     }
 
     public saveTranslateText(sessionModel: PhoneSessionModel, fileNameExcludeSuffix, translateTextArr: string[]) {

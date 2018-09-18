@@ -16,14 +16,14 @@ var DefaultCacheManager = /** @class */ (function () {
         var audioSrcBasePath = _a.audioSrcBasePath, cacheResBasePath = _a.cacheResBasePath, handleTaskPath = _a.handleTaskPath, divisionPath = _a.divisionPath, transformPath = _a.transformPath, translateTextPath = _a.translateTextPath;
         this.lastHandleFileNames = new Set();
         this.failHandleFileNameMap = new Map();
-        this.audioSrcBasePath = audioSrcBasePath;
         this.cacheResBasePath = cacheResBasePath;
+        this.audioSrcBasePath = audioSrcBasePath;
         this.handleTaskListPath = handleTaskPath;
         this.divisionPath = divisionPath;
         this.transformPath = transformPath;
         this.translateTextPath = translateTextPath;
-        !fs.existsSync(audioSrcBasePath) && fs.mkdirSync(audioSrcBasePath);
         !fs.existsSync(cacheResBasePath) && fs.mkdirSync(cacheResBasePath);
+        !fs.existsSync(audioSrcBasePath) && fs.mkdirSync(audioSrcBasePath);
         !fs.existsSync(handleTaskPath) && fs.mkdirSync(handleTaskPath);
         !fs.existsSync(divisionPath) && fs.mkdirSync(divisionPath);
         !fs.existsSync(transformPath) && fs.mkdirSync(transformPath);
@@ -149,11 +149,12 @@ var DefaultCacheManager = /** @class */ (function () {
     };
     DefaultCacheManager.prototype.removeAllTaskCacheByOneLoop = function () {
         this.failHandleFileNameMap.clear();
-        FileUtils_1.FileUtils.rmdirOnlyFile(this.cacheResBasePath, this.handleTaskListPath);
+        FileUtils_1.FileUtils.rmdirOnlyFile(this.cacheResBasePath, [this.handleTaskListPath, this.translateTextPath]);
+        FileUtils_1.FileUtils.rmdirOnlyFile(this.audioSrcBasePath);
     };
     DefaultCacheManager.prototype.removeAllTaskCacheByAtTime = function () {
         this.lastHandleFileNames.clear();
-        FileUtils_1.FileUtils.rmdirOnlyFile(this.handleTaskListPath, null);
+        FileUtils_1.FileUtils.rmdirOnlyFile(this.handleTaskListPath);
     };
     DefaultCacheManager.prototype.saveTranslateText = function (sessionModel, fileNameExcludeSuffix, translateTextArr) {
         var translateTextPath = this.getTranslateTextPath() + '\\' + TimeUtils_1.TimeUtils.getNowFormatDate();

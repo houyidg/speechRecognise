@@ -50,6 +50,8 @@ var DefaultCacheManager_1 = require("./DefaultCacheManager");
 var mysql = require('mysql');
 var node_fetch_1 = require("node-fetch");
 var fs = require("fs");
+var maxRecogniseCount = 2;
+var ISDEBUG = false;
 var MySqlCacheManager = /** @class */ (function (_super) {
     __extends(MySqlCacheManager, _super);
     function MySqlCacheManager() {
@@ -85,75 +87,152 @@ var MySqlCacheManager = /** @class */ (function (_super) {
             });
         });
     };
-    MySqlCacheManager.prototype.getAllUnTranslateList = function () {
-        var _this = this;
-        return new Promise(function (rs, rj) {
-            var searchSql = "SELECT id,monitor_filename FROM call_history WHERE LENGTH(call_content_baidu)<1 ORDER BY create_time limit 0," + _this.pageCount;
-            _this.connection.query(searchSql, [], function (err, result) {
-                if (err) {
-                    console.log('MySqlCacheManager [SELECT ERROR] - ', err.message);
-                    return;
+    MySqlCacheManager.prototype.addBaiDuRecogniseCount = function (id) {
+        return __awaiter(this, void 0, void 0, function () {
+            var selectListPromise, baidu_recognise_count, updatePromise;
+            var _this = this;
+            return __generator(this, function (_a) {
+                switch (_a.label) {
+                    case 0: return [4 /*yield*/, new Promise(function (rs, rj) {
+                            var searchSql = "SELECT baidu_recognise_count FROM call_history WHERE id=?";
+                            _this.connection.query(searchSql, [id], function (err, result) {
+                                if (err) {
+                                    console.log('MySqlCacheManager [SELECT ERROR] - ', err.message);
+                                    return;
+                                }
+                                ISDEBUG && console.log('MySqlCacheManager  addBaiDuRecogniseCount SELECT result  ', result);
+                                rs(result);
+                            });
+                        })];
+                    case 1:
+                        selectListPromise = _a.sent();
+                        baidu_recognise_count = selectListPromise[0].baidu_recognise_count;
+                        return [4 /*yield*/, new Promise(function (rs, rj) {
+                                var searchSql = "UPDATE  call_history SET baidu_recognise_count = ? WHERE id=?";
+                                _this.connection.query(searchSql, [baidu_recognise_count + 1, id], function (err, result) {
+                                    if (err) {
+                                        console.log('MySqlCacheManager [UPDATE ERROR] - ', err.message);
+                                        return;
+                                    }
+                                    ISDEBUG && console.log('MySqlCacheManager  addBaiDuRecogniseCount UPDATE result  ', result);
+                                    rs("1");
+                                });
+                            })];
+                    case 2:
+                        updatePromise = _a.sent();
+                        return [2 /*return*/, updatePromise];
                 }
-                console.log('MySqlCacheManager  getAllUnTranslateList result  ', result);
-                rs(result);
             });
         });
     };
+    MySqlCacheManager.prototype.getAllUnTranslateList = function () {
+        var _this = this;
+        var selectListPromise = new Promise(function (rs, rj) { return __awaiter(_this, void 0, void 0, function () {
+            var searchSql;
+            return __generator(this, function (_a) {
+                searchSql = "SELECT id,monitor_filename FROM call_history WHERE call_content_baidu IS NULL AND baidu_recognise_count < " + maxRecogniseCount + "  ORDER BY create_time LIMIT 0, " + this.pageCount;
+                this.connection.query(searchSql, [], function (err, result) {
+                    if (err) {
+                        console.log('MySqlCacheManager [SELECT ERROR] - ', err.message);
+                        return;
+                    }
+                    ISDEBUG && console.log('MySqlCacheManager  getAllUnTranslateList result  ', result);
+                    rs(result);
+                });
+                return [2 /*return*/];
+            });
+        }); });
+        return selectListPromise;
+    };
     MySqlCacheManager.prototype.getNeedHandleFiles = function () {
         return __awaiter(this, void 0, void 0, function () {
-            var models, rsArr, _i, rsArr_1, ele, id, monitor_filename, fileName, model;
-            return __generator(this, function (_a) {
-                switch (_a.label) {
+            var models, rsArr, promiseArr, _i, rsArr_1, ele, handleArr, groupPromise, _a, groupPromise_1, ele, rs, id, fileName, model;
+            return __generator(this, function (_b) {
+                switch (_b.label) {
                     case 0:
                         models = [];
                         return [4 /*yield*/, this.getAllUnTranslateList()];
                     case 1:
-                        rsArr = _a.sent();
-                        if (!(rsArr && rsArr.length > 0)) return [3 /*break*/, 5];
-                        _i = 0, rsArr_1 = rsArr;
-                        _a.label = 2;
-                    case 2:
-                        if (!(_i < rsArr_1.length)) return [3 /*break*/, 5];
-                        ele = rsArr_1[_i];
-                        id = ele.id, monitor_filename = ele.monitor_filename;
-                        return [4 /*yield*/, this.downLoadFileByUrl(monitor_filename)];
-                    case 3:
-                        fileName = _a.sent();
-                        console.log('getNeedHandleFiles rs', fileName);
-                        if (fileName && fileName.length > 0) {
-                            model = new PhoneSessionModel_1.PhoneSessionModel();
-                            model.buildModel({ id: id, fileName: fileName });
-                            models.push(model);
+                        rsArr = _b.sent();
+                        console.log('getNeedHandleFiles rsArr:', rsArr);
+                        promiseArr = [];
+                        Promise.all([]);
+                        if (rsArr && rsArr.length > 0) {
+                            for (_i = 0, rsArr_1 = rsArr; _i < rsArr_1.length; _i++) {
+                                ele = rsArr_1[_i];
+                                handleArr = this.handleEleFromDb(ele);
+                                promiseArr.push(handleArr);
+                            }
                         }
-                        _a.label = 4;
-                    case 4:
-                        _i++;
-                        return [3 /*break*/, 2];
-                    case 5: return [2 /*return*/, models];
+                        return [4 /*yield*/, Promise.all(promiseArr)];
+                    case 2:
+                        groupPromise = _b.sent();
+                        console.log('groupPromise:', groupPromise);
+                        for (_a = 0, groupPromise_1 = groupPromise; _a < groupPromise_1.length; _a++) {
+                            ele = groupPromise_1[_a];
+                            rs = ele[0];
+                            if (rs != -1) {
+                                id = rs[0];
+                                fileName = rs[1];
+                                if (fileName && fileName.length > 0) {
+                                    model = new PhoneSessionModel_1.PhoneSessionModel();
+                                    model.buildModel({ id: id, fileName: fileName });
+                                    models.push(model);
+                                }
+                            }
+                        }
+                        return [2 /*return*/, models];
                 }
             });
         });
     };
-    MySqlCacheManager.prototype.downLoadFileByUrl = function (url, path) {
+    MySqlCacheManager.prototype.handleEleFromDb = function (_a) {
+        var id = _a.id, monitor_filename = _a.monitor_filename;
+        return __awaiter(this, void 0, void 0, function () {
+            var addCountRs, downLoadRs;
+            return __generator(this, function (_b) {
+                addCountRs = this.addBaiDuRecogniseCount(id);
+                downLoadRs = this.downLoadFileByUrl(id, monitor_filename);
+                return [2 /*return*/, Promise.all([downLoadRs, addCountRs])];
+            });
+        });
+    };
+    /**
+     *
+     * @param url 返回filename
+     * @param path
+     */
+    MySqlCacheManager.prototype.downLoadFileByUrl = function (id, url, path) {
         if (path === void 0) { path = this.audioSrcBasePath; }
         return __awaiter(this, void 0, void 0, function () {
+            var fileName;
             return __generator(this, function (_a) {
+                fileName = url.substring(url.lastIndexOf('/') + 1, url.length);
+                path = path + "\\" + url.substring(url.lastIndexOf('/') + 1, url.length);
                 return [2 /*return*/, node_fetch_1.default(url)
                         .then(function (res) {
                         return new Promise(function (resolve, reject) {
-                            var fileName = url.substring(url.lastIndexOf('/') + 1, url.length);
-                            path = path + "\\" + url.substring(url.lastIndexOf('/') + 1, url.length);
                             var dest = fs.createWriteStream(path);
                             res.body.pipe(dest);
                             res.body.on('error', function (err) {
-                                reject(err);
+                                console.log('downLoadFileByUrl body error ', err);
+                                fs.existsSync(path) && fs.unlinkSync(path);
+                                resolve(-1);
                             });
                             dest.on('finish', function () {
-                                resolve(fileName);
+                                resolve([id, fileName]);
                             });
                             dest.on('error', function (err) {
-                                reject(err);
+                                console.log('downLoadFileByUrl dest error ', err);
+                                fs.existsSync(path) && fs.unlinkSync(path);
+                                resolve(-1);
                             });
+                        });
+                    }, function (rj) {
+                        fs.existsSync(path) && fs.unlinkSync(path);
+                        console.log('downLoadFileByUrl catch path', path, ' rj', rj);
+                        return new Promise(function (resolve, reject) {
+                            resolve(-1);
                         });
                     })];
             });

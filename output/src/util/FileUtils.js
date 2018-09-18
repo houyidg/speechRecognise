@@ -5,14 +5,15 @@ var path = require('path');
 var FileUtils = /** @class */ (function () {
     function FileUtils() {
     }
-    FileUtils.rmdirOnlyFile = function (dir, excludeDir) {
+    FileUtils.rmdirOnlyFile = function (dir, excludeDirs) {
+        if (excludeDirs === void 0) { excludeDirs = []; }
         console.log('--------------------------------rmdirOnlyDir :', dir);
         var arr = [dir];
-        var current = null;
+        var current = undefined;
         var index = 0;
         while (current = arr[index++]) {
             // 读取当前文件，并做一个判断，文件目录分别处理
-            if (current == excludeDir) {
+            if (excludeDirs.indexOf(current) > -1) {
                 continue;
             }
             var stat = fs.statSync(current);

@@ -75,7 +75,7 @@ var BaiDuOneSentenceClient = /** @class */ (function () {
         this.qps = 8; //api 可达最大并发度
     }
     BaiDuOneSentenceClient.prototype.prepare = function (_a) {
-        var _b = _a.audioSrcBasePath, audioSrcBasePath = _b === void 0 ? process.cwd() + "\\asset" : _b, _c = _a.cacheResBasePath, cacheResBasePath = _c === void 0 ? process.cwd() + "\\asset" : _c, _d = _a.divisionPath, divisionPath = _d === void 0 ? cacheResBasePath + "\\divisionCache" : _d, _e = _a.transformPath, transformPath = _e === void 0 ? cacheResBasePath + "\\transformCache" : _e, _f = _a.translateTextPath, translateTextPath = _f === void 0 ? process.cwd() + "\\translateTexts" : _f, _g = _a.handleTaskPath, handleTaskPath = _g === void 0 ? cacheResBasePath + "\\cacheAudioPath" : _g;
+        var _b = _a.cacheResBasePath, cacheResBasePath = _b === void 0 ? process.cwd() + "\\asset" : _b, _c = _a.audioSrcBasePath, audioSrcBasePath = _c === void 0 ? cacheResBasePath + "\\audio" : _c, _d = _a.divisionPath, divisionPath = _d === void 0 ? cacheResBasePath + "\\divisionCache" : _d, _e = _a.transformPath, transformPath = _e === void 0 ? cacheResBasePath + "\\transformCache" : _e, _f = _a.translateTextPath, translateTextPath = _f === void 0 ? cacheResBasePath + "\\translateTexts" : _f, _g = _a.handleTaskPath, handleTaskPath = _g === void 0 ? cacheResBasePath + "\\cacheAudioPath" : _g;
         this.cacheManager = new MySqlCacheManager_1.MySqlCacheManager();
         this.cacheManager.init({ audioSrcBasePath: audioSrcBasePath, cacheResBasePath: cacheResBasePath, handleTaskPath: handleTaskPath, divisionPath: divisionPath, transformPath: transformPath, translateTextPath: translateTextPath });
         // 新建一个对象，建议只保存一个对象调用服务接口
@@ -135,7 +135,7 @@ var BaiDuOneSentenceClient = /** @class */ (function () {
                         retryModels = [];
                         startTime = new Date().getTime() / 1000;
                         _loop_1 = function () {
-                            var needHandleTasks, taskPromiseArr, _loop_2, index, len, startTime_1;
+                            var needHandleTasks, taskPromiseArr, concurrenceCount, _loop_2, index, startTime_1;
                             return __generator(this, function (_a) {
                                 switch (_a.label) {
                                     case 0:
@@ -144,9 +144,10 @@ var BaiDuOneSentenceClient = /** @class */ (function () {
                                         console.log('\n\r');
                                         retryModels = [];
                                         needHandleTasks = meetModels.splice(0, Math.min(this_1.qps, meetModels.length));
-                                        console.log('start 建立并发通道数:', needHandleTasks.length);
                                         taskPromiseArr = [];
-                                        _loop_2 = function (index, len) {
+                                        concurrenceCount = needHandleTasks.length;
+                                        console.log('start 建立并发通道数:', concurrenceCount);
+                                        _loop_2 = function (index) {
                                             var needModel = needHandleTasks[index];
                                             var rs = this_1.assembleTask(needModel, function () {
                                                 //拿取剩余的任务执行
@@ -156,13 +157,14 @@ var BaiDuOneSentenceClient = /** @class */ (function () {
                                                     return _this.assembleTask(nextModel, undefined);
                                                 }
                                                 else {
-                                                    console.log('--------------------------------并发通道 ', index, ' 执行完毕，等待其他通道！');
+                                                    concurrenceCount--;
+                                                    console.log('--------------------------------并发通道 ', index, ' 执行完毕，还有剩余执行通道:', concurrenceCount);
                                                 }
                                             });
                                             taskPromiseArr.push(rs);
                                         };
-                                        for (index = 0, len = needHandleTasks.length; index < len; index++) {
-                                            _loop_2(index, len);
+                                        for (index = 0; index < concurrenceCount; index++) {
+                                            _loop_2(index);
                                         }
                                         startTime_1 = new Date().getTime() / 1000;
                                         return [4 /*yield*/, Promise.all(taskPromiseArr)

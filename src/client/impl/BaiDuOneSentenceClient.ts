@@ -46,12 +46,12 @@ export class BaiDuOneSentenceClient implements ISpeechRecongniseClient {
     qps = 8;//api 可达最大并发度
 
     public prepare({
-        audioSrcBasePath = process.cwd() + "\\asset",
         cacheResBasePath = process.cwd() + "\\asset",
+        audioSrcBasePath = cacheResBasePath + "\\audio",
         divisionPath = cacheResBasePath + "\\divisionCache",
         transformPath = cacheResBasePath + "\\transformCache",
-        translateTextPath = process.cwd() + "\\translateTexts",
-        handleTaskPath = cacheResBasePath + "\\cacheAudioPath" }) {//准备环境
+        translateTextPath = cacheResBasePath + "\\translateTexts",
+        handleTaskPath = cacheResBasePath + "\\audioPathCache" }) {//准备环境
         this.cacheManager = new MySqlCacheManager();
         this.cacheManager.init({ audioSrcBasePath, cacheResBasePath, handleTaskPath, divisionPath, transformPath, translateTextPath });
         // 新建一个对象，建议只保存一个对象调用服务接口
@@ -108,9 +108,10 @@ export class BaiDuOneSentenceClient implements ISpeechRecongniseClient {
             console.log('\n\r');
             retryModels = [];
             let needHandleTasks = meetModels.splice(0, Math.min(this.qps, meetModels.length));
-            console.log('start 建立并发通道数:', needHandleTasks.length);
             let taskPromiseArr = [];
-            for (let index = 0, len = needHandleTasks.length; index < len; index++) {
+            let concurrenceCount = needHandleTasks.length;
+            console.log('start 建立并发通道数:', concurrenceCount);
+            for (let index = 0; index < concurrenceCount; index++) {
                 let needModel = needHandleTasks[index];
                 let rs = this.assembleTask(needModel, () => {
                     //拿取剩余的任务执行
@@ -119,7 +120,8 @@ export class BaiDuOneSentenceClient implements ISpeechRecongniseClient {
                         console.log('--------------------------------拿取下一个任务：', nextModel, '   等待执行的任务: ', meetModels.length);
                         return this.assembleTask(nextModel, undefined);
                     } else {
-                        console.log('--------------------------------并发通道 ', index, ' 执行完毕，等待其他通道！');
+                        concurrenceCount--;
+                        console.log('--------------------------------并发通道 ', index, ' 执行完毕，还有剩余执行通道:', concurrenceCount);
                     }
                 });
                 taskPromiseArr.push(rs);
