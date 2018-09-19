@@ -1,0 +1,45 @@
+SpeechRecongniseClient this.firstScanFileTime: 0 秒     this.scanFileTimeInterval : 24 h 间隔执行 
+
+
+------------------------start handle------------------------------
+
+
+---getNeedHandleFiles rsArr: false
+---groupPromise: []
+---getNeedHandleFiles 从数据拿取数据,下载音频文件 cost time: 10 秒
+
+
+--------------------------------rmdirOnlyDir : C:\Users\Administrator\Documents\GitHub\speechRecognise\asset\audioPathCache  excludeDirs: []
+-----------------------------------------end handle all Task cost time: 10 秒---------------------------
+
+
+SpeechRecongniseClient this.firstScanFileTime: 0 秒     this.scanFileTimeInterval : 24 h 间隔执行 
+
+
+------------------------start handle------------------------------
+
+
+---getNeedHandleFiles rsArr: false
+---groupPromise: []
+---getNeedHandleFiles 从数据拿取数据,下载音频文件 cost time: 10 秒
+
+
+--------------------------------rmdirOnlyDir : C:\Users\Administrator\Documents\GitHub\speechRecognise\asset\audioPathCache  excludeDirs: []
+-----------------------------------------end handle all Task cost time: 10 秒---------------------------
+
+
+SpeechRecongniseClient this.firstScanFileTime: 0 秒     this.scanFileTimeInterval : 24 h 间隔执行 
+
+
+------------------------start handle------------------------------
+
+
+---getNeedHandleFiles rsArr: false
+---groupPromise: []
+---getNeedHandleFiles 从数据拿取数据,下载音频文件 cost time: 10 秒
+
+
+--------------------------------rmdirOnlyDir : C:\Users\Administrator\Documents\GitHub\speechRecognise\asset\audioPathCache  excludeDirs: []
+-----------------------------------------end handle all Task cost time: 10 秒---------------------------
+
+

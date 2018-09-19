@@ -1,0 +1,5 @@
+[2018-09-19T15:49:28.033] [ERROR] cheese - MySqlCacheManager getAllUnTranslateList [SELECT ERROR] -  connect ETIMEDOUT
+[2018-09-19T15:59:03.519] [ERROR] cheese - MySqlCacheManager getAllUnTranslateList [SELECT ERROR] -  connect ETIMEDOUT
+[2018-09-19T16:02:52.835] [ERROR] cheese - MySqlCacheManager getAllUnTranslateList [SELECT ERROR] -  connect ETIMEDOUT
+[2018-09-19T16:03:14.402] [ERROR] cheese - MySqlCacheManager getAllUnTranslateList [SELECT ERROR] -  connect ETIMEDOUT
+[2018-09-19T16:06:07.887] [ERROR] cheese - MySqlCacheManager getAllUnTranslateList [SELECT ERROR] -  connect ETIMEDOUT

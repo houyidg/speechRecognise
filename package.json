@@ -5,7 +5,8 @@
     "main": "launch.ts",
     "scripts": {
         "dev": "tsc && node output/launch",
-        "start": "tsc && forever -o ./logs/foreverout.log -e ./logs/forevererr.log ./forever/development.json"
+        "stopSpeech": "forever stop baidu_speech_recognise_service",
+        "start": "tsc && forever start -o ./logs/foreverout.log -e ./logs/forevererr.log ./forever/development.json"
     },
     "dependencies": {
         "baidu-aip-sdk": "^2.3.3",
