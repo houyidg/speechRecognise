@@ -9,14 +9,13 @@ import * as os from "os";
 import * as moment from 'moment';
 import { ISpeechRecongniseClient } from "../ISpeechRecongnise";
 import { exec } from "child_process";
-import { BAIDU_CONFIG, logger } from '../../config';
+import { baiduConfig, logger, requestTimeout, scanFileTimeByEveryDay } from '../../config';
 const isDebug = false;
 const path = require('path');
 const RecongniseSpeechErrorByDivision = '-RecongniseSpeechErrorByDivision-';
 const RecongniseSpeechErrorByTransForm = '-RecongniseSpeechErrorByTransForm-';
 const RecongniseSpeechErrorByBaiduApi = '-RecongniseSpeechErrorByBaiduApi-';
-const timeout = 30 * 60 * 1000;
-const scanFileTimeByDay = 9;//每天早上10点开始轮训转换为语音
+
 
 // 3300	用户输入错误	输入参数不正确	请仔细核对文档及参照demo，核对输入参数
 // 3301	用户输入错误	音频质量过差	请上传清晰的音频
@@ -44,7 +43,6 @@ export class BaiDuOneSentenceClient implements ISpeechRecongniseClient {
     cacheManager: ICacheManager;
     scanFileTimeInterval = 60 * 1000;//60 s
     firstScanFileTime = 60 * 1000;//60 s
-    qps = 8;//api 可达最大并发度
 
     public prepare({
         cacheResBasePath = process.cwd() + path.sep + "asset",
@@ -56,10 +54,10 @@ export class BaiDuOneSentenceClient implements ISpeechRecongniseClient {
         this.cacheManager = new MySqlCacheManager();
         this.cacheManager.init({ audioSrcBasePath, cacheResBasePath, handleTaskPath, divisionPath, transformPath, translateTextPath });
         // 新建一个对象，建议只保存一个对象调用服务接口
-        this.client = new speech(BAIDU_CONFIG.APP_ID, BAIDU_CONFIG.API_KEY, BAIDU_CONFIG.SECRET_KEY);
+        this.client = new speech(baiduConfig.APP_ID, baiduConfig.API_KEY, baiduConfig.SECRET_KEY);
         // 设置request库的一些参数，例如代理服务地址，超时时间等
         // request参数请参考 https://github.com/request/request#requestoptions-callback
-        HttpClient.setRequestOptions({ timeout: timeout });
+        HttpClient.setRequestOptions({ timeout: requestTimeout });
         // 也可以设置拦截每次请求（设置拦截后，调用的setRequestOptions设置的参数将不生效）,
         // 可以按需修改request参数（无论是否修改，必须返回函数调用参数）
         // request参数请参考 https://github.com/request/request#requestoptions-callback
@@ -67,13 +65,13 @@ export class BaiDuOneSentenceClient implements ISpeechRecongniseClient {
             // 查看参数
             // console.log(requestOptions)
             // 修改参数
-            requestOptions.timeout = timeout;
+            requestOptions.timeout = requestTimeout;
             // 返回参数
             return requestOptions;
         });
         let todayHour: any = moment().format('HH:mm:ss').split(':');
         let todaySecond = parseInt(`${todayHour[0] * 60 * 60}`) + parseInt(`${todayHour[1] * 60}`) + parseInt(`${todayHour[2]}`);
-        let todayOffset = scanFileTimeByDay * 60 * 60 - todaySecond;
+        let todayOffset = scanFileTimeByEveryDay * 60 * 60 - todaySecond;
         if (todayOffset > 0) {//如果今天时间在规定时间之前就延时执行，在之后就直接执行
             this.firstScanFileTime = todayOffset * 1000;
         } else {
@@ -109,7 +107,7 @@ export class BaiDuOneSentenceClient implements ISpeechRecongniseClient {
             console.log('\n\r');
             console.log('--------------------------------loop Task  总共需要执行的任务:', meetModels.length, ' 包含重试的任务:', retryModels.length, ' \n:', meetModels);
             retryModels = [];
-            let needHandleTasks = meetModels.splice(0, Math.min(this.qps, meetModels.length));
+            let needHandleTasks = meetModels.splice(0, Math.min(baiduConfig.qps, meetModels.length));
             let concurrenceCount = needHandleTasks.length;
             console.log('start 建立并发通道数:', concurrenceCount);
             let taskPromiseArr = [];

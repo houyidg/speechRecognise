@@ -4,12 +4,13 @@ import { ICacheManager } from './ICacheManager';
 import * as fs from "fs";
 import * as os from "os";
 import { TimeUtils } from '../../util/TimeUtils';
+import { resolveAudioRetryCount } from '../../config';
 const path = require('path');
 const isDebug = false;
 export class DefaultCacheManager implements ICacheManager {
     private lastHandleFileNames: Set<string>;//上一次处理的文件路径
     private failHandleFileNameMap: Map<PhoneSessionModel, number>;//上一次处理的文件路径filename,retryCount
-    private retryCount = 1;
+    private defaultRetryCount = resolveAudioRetryCount;
     scanCount = 0;
     supportDocumentFomrat = ['mp3', 'pcm', 'wav'];
 
@@ -132,7 +133,7 @@ export class DefaultCacheManager implements ICacheManager {
     public getRetryModelsByToday(): PhoneSessionModel[] {
         let retryTasks: PhoneSessionModel[] = [];
         this.failHandleFileNameMap.forEach((value, key, map) => {
-            if (value <= this.retryCount) {
+            if (value <= this.defaultRetryCount) {
                 retryTasks.push(key);
             }
         });

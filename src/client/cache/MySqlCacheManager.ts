@@ -2,15 +2,14 @@ import { PhoneSessionModel } from '../PhoneSessionModel';
 import { DefaultCacheManager } from './DefaultCacheManager';
 import fetch from 'node-fetch';
 import * as fs from "fs";
-import { dbConfig } from '../../config';
+import { dbConfig, pageCountByDb } from '../../config';
 const mysql = require('mysql');
 const path = require('path');
 const maxRecogniseCount = 2;
 const ISDEBUG = false;
 export class MySqlCacheManager extends DefaultCacheManager {
     private connection;
-    private pageCount = 20;
-    private pageNo = 0;
+    private pageCount = pageCountByDb;
     public init({ audioSrcBasePath, cacheResBasePath, handleTaskPath, divisionPath, transformPath, translateTextPath }) {
         super.init({ audioSrcBasePath, cacheResBasePath, handleTaskPath, divisionPath, transformPath, translateTextPath });
         this.connection = mysql.createConnection(dbConfig);
