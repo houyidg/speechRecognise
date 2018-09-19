@@ -21,7 +21,8 @@ var dbConfig = isDebug ? {
     host: '10.168.109.3',
     user: 'dev',
     password: 'fQUcnNi919lIn@iC22ORb9',
-    database: 'kf'
+    database: 'kf',
+    port: 3308
 };
 exports.dbConfig = dbConfig;
 var resolveAudioRetryCount = 1; //每次音频解析重试次数

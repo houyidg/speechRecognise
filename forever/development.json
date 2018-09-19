@@ -1,0 +1,7 @@
+{
+    "uid": "baidu_speech_recognise_service",
+    "append": true,
+    "watch": true,
+    "script": "./output/launch.js",
+    "sourceDir": "./"
+}

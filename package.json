@@ -1,10 +1,11 @@
 {
     "name": "speech_recongnise",
     "version": "1.0.0",
-    "description": "",
-    "main": "index.js",
+    "description": "speech_recongnise",
+    "main": "launch.ts",
     "scripts": {
-        "start": "tsc && node ./output/launch"
+        "dev": "tsc && node output/launch",
+        "start": "tsc && forever -o ./logs/foreverout.log -e ./logs/forevererr.log ./forever/development.json"
     },
     "dependencies": {
         "baidu-aip-sdk": "^2.3.3",
