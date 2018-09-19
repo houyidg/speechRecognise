@@ -5,11 +5,12 @@ var FileUtils_1 = require("./../../util/FileUtils");
 var fs = require("fs");
 var os = require("os");
 var TimeUtils_1 = require("../../util/TimeUtils");
+var config_1 = require("../../config");
 var path = require('path');
 var isDebug = false;
 var DefaultCacheManager = /** @class */ (function () {
     function DefaultCacheManager() {
-        this.retryCount = 1;
+        this.defaultRetryCount = config_1.resolveAudioRetryCount;
         this.scanCount = 0;
         this.supportDocumentFomrat = ['mp3', 'pcm', 'wav'];
     }
@@ -120,7 +121,7 @@ var DefaultCacheManager = /** @class */ (function () {
         var _this = this;
         var retryTasks = [];
         this.failHandleFileNameMap.forEach(function (value, key, map) {
-            if (value <= _this.retryCount) {
+            if (value <= _this.defaultRetryCount) {
                 retryTasks.push(key);
             }
         });

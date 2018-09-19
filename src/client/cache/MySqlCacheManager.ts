@@ -2,7 +2,7 @@ import { PhoneSessionModel } from '../PhoneSessionModel';
 import { DefaultCacheManager } from './DefaultCacheManager';
 import fetch from 'node-fetch';
 import * as fs from "fs";
-import { dbConfig, pageCountByDb } from '../../config';
+import { dbConfig, pageCountByDb, logger } from '../../config';
 const mysql = require('mysql');
 const path = require('path');
 const maxRecogniseCount = 2;
@@ -12,7 +12,11 @@ export class MySqlCacheManager extends DefaultCacheManager {
     private pageCount = pageCountByDb;
     public init({ audioSrcBasePath, cacheResBasePath, handleTaskPath, divisionPath, transformPath, translateTextPath }) {
         super.init({ audioSrcBasePath, cacheResBasePath, handleTaskPath, divisionPath, transformPath, translateTextPath });
-        this.connection = mysql.createConnection(dbConfig);
+        try {
+            this.connection = mysql.createConnection(dbConfig);
+        } catch (e) {
+            logger.error(e);
+        }
     }
 
     public async saveTranslateText(sessionModel: PhoneSessionModel, fileNameExcludeSuffix, translateTextArr: string[]) {
@@ -21,8 +25,8 @@ export class MySqlCacheManager extends DefaultCacheManager {
             sessionModel.call_content_baidu = translateTextArr.join();
             let sql = 'UPDATE call_history SET call_content_baidu=? WHERE id = ?';
             let params = [sessionModel.call_content_baidu, sessionModel.id];
-            this.connection.query(sql, params, (err, result) => {
-                err && console.log('MySqlCacheManager [UPDATE ERROR] - ', err.message);
+            this.connection && this.connection.query(sql, params, (err, result) => {
+                err && logger.error('MySqlCacheManager saveTranslateText [UPDATE ERROR] - ', err.message);
                 rs(1);
             });
         });
@@ -30,11 +34,12 @@ export class MySqlCacheManager extends DefaultCacheManager {
 
 
     private async  addBaiDuRecogniseCount(id) {
-        let selectListPromise = await new Promise<[{ baidu_recognise_count }]>((rs, rj) => {
+        let selectListPromise = await new Promise<any>((rs, rj) => {
             let searchSql = `SELECT baidu_recognise_count FROM call_history WHERE id=?`;
-            this.connection.query(searchSql, [id], (err, result) => {
+            this.connection && this.connection.query(searchSql, [id], (err, result) => {
                 if (err) {
-                    console.log('MySqlCacheManager [SELECT ERROR] - ', err.message);
+                    logger.error('MySqlCacheManager  addBaiDuRecogniseCount[SELECT ERROR] - ', err.message);
+                    rs(false);
                     return;
                 }
                 ISDEBUG && console.log('MySqlCacheManager  addBaiDuRecogniseCount SELECT result  ', result);
@@ -44,9 +49,10 @@ export class MySqlCacheManager extends DefaultCacheManager {
         let baidu_recognise_count = selectListPromise[0].baidu_recognise_count;
         let updatePromise = await new Promise((rs, rj) => {
             let searchSql = `UPDATE  call_history SET baidu_recognise_count = ? WHERE id=?`;
-            this.connection.query(searchSql, [baidu_recognise_count + 1, id], (err, result) => {
+            this.connection && this.connection.query(searchSql, [baidu_recognise_count + 1, id], (err, result) => {
                 if (err) {
-                    console.log('MySqlCacheManager [UPDATE ERROR] - ', err.message);
+                    logger.error('MySqlCacheManager addBaiDuRecogniseCount [UPDATE ERROR] - ', err.message);
+                    rs(false);
                     return;
                 }
                 ISDEBUG && console.log('MySqlCacheManager  addBaiDuRecogniseCount UPDATE result  ', result);
@@ -57,12 +63,13 @@ export class MySqlCacheManager extends DefaultCacheManager {
         return updatePromise;
     }
 
-    public getAllUnTranslateList(): Promise<[{ id, monitor_filename }]> {
-        let selectListPromise = new Promise<[{ id, monitor_filename }]>(async (rs, rj) => {
+    public getAllUnTranslateList(): Promise<any> {
+        let selectListPromise = new Promise<any>(async (rs, rj) => {
             let searchSql = `SELECT id,monitor_filename FROM call_history WHERE call_content_baidu IS NULL AND baidu_recognise_count < ${maxRecogniseCount}  ORDER BY create_time LIMIT 0, ${this.pageCount}`;
-            this.connection.query(searchSql, [], (err, result) => {
+            this.connection && this.connection.query(searchSql, [], (err, result) => {
                 if (err) {
-                    console.log('MySqlCacheManager [SELECT ERROR] - ', err.message);
+                    logger.error('MySqlCacheManager getAllUnTranslateList [SELECT ERROR] - ', err.message);
+                    rs(false);
                     return;
                 }
                 ISDEBUG && console.log('MySqlCacheManager  getAllUnTranslateList result  ', result);
@@ -107,8 +114,8 @@ export class MySqlCacheManager extends DefaultCacheManager {
     }
 
     private async handleEleFromDb({ id, monitor_filename }) {
-        let addCountRs = this.addBaiDuRecogniseCount(id);
         let downLoadRs = this.downLoadFileByUrl(id, monitor_filename);
+        let addCountRs = this.addBaiDuRecogniseCount(id);
         return Promise.all([downLoadRs, addCountRs]);
     }
 
@@ -132,7 +139,7 @@ export class MySqlCacheManager extends DefaultCacheManager {
                             const dest = fs.createWriteStream(audioPath);
                             res.body.pipe(dest);
                             res.body.on('error', err => {
-                                console.log('downLoadFileByUrl body error ', err);
+                                logger.error('downLoadFileByUrl body error ', err);
                                 fs.existsSync(audioPath) && fs.unlinkSync(audioPath);
                                 resolve(-1);
                             });
@@ -140,18 +147,20 @@ export class MySqlCacheManager extends DefaultCacheManager {
                                 resolve([id, fileName]);
                             });
                             dest.on('error', err => {
-                                console.log('downLoadFileByUrl dest error ', err);
+                                logger.error('downLoadFileByUrl dest error ', err);
                                 fs.existsSync(audioPath) && fs.unlinkSync(audioPath);
                                 resolve(-1);
                             });
                         } else {
+                            logger.error('downLoadFileByUrl contentType error ', contentType);
                             resolve(-1);
                         }
                     });
                 },
+
                 (rj) => {
                     fs.existsSync(audioPath) && fs.unlinkSync(audioPath);
-                    console.log('downLoadFileByUrl catch path', audioPath, ' rj', rj);
+                    logger.error('downLoadFileByUrl catch path', audioPath, ' rj', rj);
                     return new Promise((resolve, reject) => {
                         resolve(-1);
                     });

@@ -47,8 +47,6 @@ var path = require('path');
 var RecongniseSpeechErrorByDivision = '-RecongniseSpeechErrorByDivision-';
 var RecongniseSpeechErrorByTransForm = '-RecongniseSpeechErrorByTransForm-';
 var RecongniseSpeechErrorByBaiduApi = '-RecongniseSpeechErrorByBaiduApi-';
-var timeout = 30 * 60 * 1000;
-var scanFileTimeByDay = 9; //每天早上10点开始轮训转换为语音
 // 3300	用户输入错误	输入参数不正确	请仔细核对文档及参照demo，核对输入参数
 // 3301	用户输入错误	音频质量过差	请上传清晰的音频
 // 3302	用户输入错误	鉴权失败	token字段校验失败。请使用正确的API_KEY 和 SECRET_KEY生成
@@ -73,17 +71,16 @@ var BaiDuOneSentenceClient = /** @class */ (function () {
     function BaiDuOneSentenceClient() {
         this.scanFileTimeInterval = 60 * 1000; //60 s
         this.firstScanFileTime = 60 * 1000; //60 s
-        this.qps = 8; //api 可达最大并发度
     }
     BaiDuOneSentenceClient.prototype.prepare = function (_a) {
         var _b = _a.cacheResBasePath, cacheResBasePath = _b === void 0 ? process.cwd() + path.sep + "asset" : _b, _c = _a.audioSrcBasePath, audioSrcBasePath = _c === void 0 ? cacheResBasePath + path.sep + "audio" : _c, _d = _a.divisionPath, divisionPath = _d === void 0 ? cacheResBasePath + path.sep + "divisionCache" : _d, _e = _a.transformPath, transformPath = _e === void 0 ? cacheResBasePath + path.sep + "transformCache" : _e, _f = _a.translateTextPath, translateTextPath = _f === void 0 ? cacheResBasePath + path.sep + "translateTexts" : _f, _g = _a.handleTaskPath, handleTaskPath = _g === void 0 ? cacheResBasePath + path.sep + "audioPathCache" : _g;
         this.cacheManager = new MySqlCacheManager_1.MySqlCacheManager();
         this.cacheManager.init({ audioSrcBasePath: audioSrcBasePath, cacheResBasePath: cacheResBasePath, handleTaskPath: handleTaskPath, divisionPath: divisionPath, transformPath: transformPath, translateTextPath: translateTextPath });
         // 新建一个对象，建议只保存一个对象调用服务接口
-        this.client = new baidu_aip_sdk_1.speech(config_1.BAIDU_CONFIG.APP_ID, config_1.BAIDU_CONFIG.API_KEY, config_1.BAIDU_CONFIG.SECRET_KEY);
+        this.client = new baidu_aip_sdk_1.speech(config_1.baiduConfig.APP_ID, config_1.baiduConfig.API_KEY, config_1.baiduConfig.SECRET_KEY);
         // 设置request库的一些参数，例如代理服务地址，超时时间等
         // request参数请参考 https://github.com/request/request#requestoptions-callback
-        baidu_aip_sdk_1.HttpClient.setRequestOptions({ timeout: timeout });
+        baidu_aip_sdk_1.HttpClient.setRequestOptions({ timeout: config_1.requestTimeout });
         // 也可以设置拦截每次请求（设置拦截后，调用的setRequestOptions设置的参数将不生效）,
         // 可以按需修改request参数（无论是否修改，必须返回函数调用参数）
         // request参数请参考 https://github.com/request/request#requestoptions-callback
@@ -91,13 +88,13 @@ var BaiDuOneSentenceClient = /** @class */ (function () {
             // 查看参数
             // console.log(requestOptions)
             // 修改参数
-            requestOptions.timeout = timeout;
+            requestOptions.timeout = config_1.requestTimeout;
             // 返回参数
             return requestOptions;
         });
         var todayHour = moment().format('HH:mm:ss').split(':');
         var todaySecond = parseInt("" + todayHour[0] * 60 * 60) + parseInt("" + todayHour[1] * 60) + parseInt("" + todayHour[2]);
-        var todayOffset = scanFileTimeByDay * 60 * 60 - todaySecond;
+        var todayOffset = config_1.scanFileTimeByEveryDay * 60 * 60 - todaySecond;
         if (todayOffset > 0) { //如果今天时间在规定时间之前就延时执行，在之后就直接执行
             this.firstScanFileTime = todayOffset * 1000;
         }
@@ -146,7 +143,7 @@ var BaiDuOneSentenceClient = /** @class */ (function () {
                                         console.log('\n\r');
                                         console.log('--------------------------------loop Task  总共需要执行的任务:', meetModels.length, ' 包含重试的任务:', retryModels.length, ' \n:', meetModels);
                                         retryModels = [];
-                                        needHandleTasks = meetModels.splice(0, Math.min(this_1.qps, meetModels.length));
+                                        needHandleTasks = meetModels.splice(0, Math.min(config_1.baiduConfig.qps, meetModels.length));
                                         concurrenceCount = needHandleTasks.length;
                                         console.log('start 建立并发通道数:', concurrenceCount);
                                         taskPromiseArr = [];
@@ -202,7 +199,7 @@ var BaiDuOneSentenceClient = /** @class */ (function () {
                         return [3 /*break*/, 1];
                     case 5:
                         this.cacheManager.removeAllTaskCacheByAtTime();
-                        console.log('-----------------------------------------end handle all Task cost time:', (new Date().getTime() / 1000 - startTime).toFixed(0), '秒');
+                        console.log('-----------------------------------------end handle all Task cost time:', (new Date().getTime() / 1000 - startTime).toFixed(0), '秒---------------------------');
                         console.log('\n\r');
                         return [2 /*return*/];
                 }

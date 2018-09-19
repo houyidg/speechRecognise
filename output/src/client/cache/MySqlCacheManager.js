@@ -58,14 +58,18 @@ var MySqlCacheManager = /** @class */ (function (_super) {
     __extends(MySqlCacheManager, _super);
     function MySqlCacheManager() {
         var _this = _super !== null && _super.apply(this, arguments) || this;
-        _this.pageCount = 20;
-        _this.pageNo = 0;
+        _this.pageCount = config_1.pageCountByDb;
         return _this;
     }
     MySqlCacheManager.prototype.init = function (_a) {
         var audioSrcBasePath = _a.audioSrcBasePath, cacheResBasePath = _a.cacheResBasePath, handleTaskPath = _a.handleTaskPath, divisionPath = _a.divisionPath, transformPath = _a.transformPath, translateTextPath = _a.translateTextPath;
         _super.prototype.init.call(this, { audioSrcBasePath: audioSrcBasePath, cacheResBasePath: cacheResBasePath, handleTaskPath: handleTaskPath, divisionPath: divisionPath, transformPath: transformPath, translateTextPath: translateTextPath });
-        this.connection = mysql.createConnection(config_1.dbConfig);
+        try {
+            this.connection = mysql.createConnection(config_1.dbConfig);
+        }
+        catch (e) {
+            config_1.logger.error(e);
+        }
     };
     MySqlCacheManager.prototype.saveTranslateText = function (sessionModel, fileNameExcludeSuffix, translateTextArr) {
         return __awaiter(this, void 0, void 0, function () {
@@ -76,8 +80,8 @@ var MySqlCacheManager = /** @class */ (function (_super) {
                         sessionModel.call_content_baidu = translateTextArr.join();
                         var sql = 'UPDATE call_history SET call_content_baidu=? WHERE id = ?';
                         var params = [sessionModel.call_content_baidu, sessionModel.id];
-                        _this.connection.query(sql, params, function (err, result) {
-                            err && console.log('MySqlCacheManager [UPDATE ERROR] - ', err.message);
+                        _this.connection && _this.connection.query(sql, params, function (err, result) {
+                            err && config_1.logger.error('MySqlCacheManager saveTranslateText [UPDATE ERROR] - ', err.message);
                             rs(1);
                         });
                     })];
@@ -92,9 +96,10 @@ var MySqlCacheManager = /** @class */ (function (_super) {
                 switch (_a.label) {
                     case 0: return [4 /*yield*/, new Promise(function (rs, rj) {
                             var searchSql = "SELECT baidu_recognise_count FROM call_history WHERE id=?";
-                            _this.connection.query(searchSql, [id], function (err, result) {
+                            _this.connection && _this.connection.query(searchSql, [id], function (err, result) {
                                 if (err) {
-                                    console.log('MySqlCacheManager [SELECT ERROR] - ', err.message);
+                                    config_1.logger.error('MySqlCacheManager  addBaiDuRecogniseCount[SELECT ERROR] - ', err.message);
+                                    rs(false);
                                     return;
                                 }
                                 ISDEBUG && console.log('MySqlCacheManager  addBaiDuRecogniseCount SELECT result  ', result);
@@ -106,9 +111,10 @@ var MySqlCacheManager = /** @class */ (function (_super) {
                         baidu_recognise_count = selectListPromise[0].baidu_recognise_count;
                         return [4 /*yield*/, new Promise(function (rs, rj) {
                                 var searchSql = "UPDATE  call_history SET baidu_recognise_count = ? WHERE id=?";
-                                _this.connection.query(searchSql, [baidu_recognise_count + 1, id], function (err, result) {
+                                _this.connection && _this.connection.query(searchSql, [baidu_recognise_count + 1, id], function (err, result) {
                                     if (err) {
-                                        console.log('MySqlCacheManager [UPDATE ERROR] - ', err.message);
+                                        config_1.logger.error('MySqlCacheManager addBaiDuRecogniseCount [UPDATE ERROR] - ', err.message);
+                                        rs(false);
                                         return;
                                     }
                                     ISDEBUG && console.log('MySqlCacheManager  addBaiDuRecogniseCount UPDATE result  ', result);
@@ -128,9 +134,10 @@ var MySqlCacheManager = /** @class */ (function (_super) {
             var searchSql;
             return __generator(this, function (_a) {
                 searchSql = "SELECT id,monitor_filename FROM call_history WHERE call_content_baidu IS NULL AND baidu_recognise_count < " + maxRecogniseCount + "  ORDER BY create_time LIMIT 0, " + this.pageCount;
-                this.connection.query(searchSql, [], function (err, result) {
+                this.connection && this.connection.query(searchSql, [], function (err, result) {
                     if (err) {
-                        console.log('MySqlCacheManager [SELECT ERROR] - ', err.message);
+                        config_1.logger.error('MySqlCacheManager getAllUnTranslateList [SELECT ERROR] - ', err.message);
+                        rs(false);
                         return;
                     }
                     ISDEBUG && console.log('MySqlCacheManager  getAllUnTranslateList result  ', result);
@@ -190,10 +197,10 @@ var MySqlCacheManager = /** @class */ (function (_super) {
     MySqlCacheManager.prototype.handleEleFromDb = function (_a) {
         var id = _a.id, monitor_filename = _a.monitor_filename;
         return __awaiter(this, void 0, void 0, function () {
-            var addCountRs, downLoadRs;
+            var downLoadRs, addCountRs;
             return __generator(this, function (_b) {
-                addCountRs = this.addBaiDuRecogniseCount(id);
                 downLoadRs = this.downLoadFileByUrl(id, monitor_filename);
+                addCountRs = this.addBaiDuRecogniseCount(id);
                 return [2 /*return*/, Promise.all([downLoadRs, addCountRs])];
             });
         });
@@ -221,7 +228,7 @@ var MySqlCacheManager = /** @class */ (function (_super) {
                                 var dest = fs.createWriteStream(audioPath);
                                 res.body.pipe(dest);
                                 res.body.on('error', function (err) {
-                                    console.log('downLoadFileByUrl body error ', err);
+                                    config_1.logger.error('downLoadFileByUrl body error ', err);
                                     fs.existsSync(audioPath) && fs.unlinkSync(audioPath);
                                     resolve(-1);
                                 });
@@ -229,18 +236,19 @@ var MySqlCacheManager = /** @class */ (function (_super) {
                                     resolve([id, fileName]);
                                 });
                                 dest.on('error', function (err) {
-                                    console.log('downLoadFileByUrl dest error ', err);
+                                    config_1.logger.error('downLoadFileByUrl dest error ', err);
                                     fs.existsSync(audioPath) && fs.unlinkSync(audioPath);
                                     resolve(-1);
                                 });
                             }
                             else {
+                                config_1.logger.error('downLoadFileByUrl contentType error ', contentType);
                                 resolve(-1);
                             }
                         });
                     }, function (rj) {
                         fs.existsSync(audioPath) && fs.unlinkSync(audioPath);
-                        console.log('downLoadFileByUrl catch path', audioPath, ' rj', rj);
+                        config_1.logger.error('downLoadFileByUrl catch path', audioPath, ' rj', rj);
                         return new Promise(function (resolve, reject) {
                             resolve(-1);
                         });
