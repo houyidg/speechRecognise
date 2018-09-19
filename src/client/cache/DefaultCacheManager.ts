@@ -5,7 +5,7 @@ import * as fs from "fs";
 import * as os from "os";
 import { TimeUtils } from '../../util/TimeUtils';
 const path = require('path');
-const isDebug = true;
+const isDebug = false;
 export class DefaultCacheManager implements ICacheManager {
     private lastHandleFileNames: Set<string>;//上一次处理的文件路径
     private failHandleFileNameMap: Map<PhoneSessionModel, number>;//上一次处理的文件路径filename,retryCount
@@ -163,14 +163,15 @@ export class DefaultCacheManager implements ICacheManager {
     }
 
     public removeAllTaskCacheByOneLoop() {
-        FileUtils.rmdirOnlyFile(this.cacheResBasePath, [this.handleTaskListPath, this.audioSrcBasePath, this.translateTextPath]);
-        // FileUtils.rmdirOnlyFile(this.audioSrcBasePath);
+        // FileUtils.rmdirOnlyFile(this.cacheResBasePath, [this.handleTaskListPath, this.audioSrcBasePath, this.translateTextPath]);
+        FileUtils.rmdirOnlyFile(this.cacheResBasePath, [this.handleTaskListPath]);
     }
 
     public removeAllTaskCacheByAtTime() {
         this.lastHandleFileNames.clear();
         this.failHandleFileNameMap.clear();
-        FileUtils.rmdirOnlyFile(this.handleTaskListPath, [this.audioSrcBasePath]);
+        FileUtils.rmdirOnlyFile(this.handleTaskListPath);
+        // FileUtils.rmdirOnlyFile(this.audioSrcBasePath);
     }
 
     public saveTranslateText(sessionModel: PhoneSessionModel, fileNameExcludeSuffix, translateTextArr: string[]) {

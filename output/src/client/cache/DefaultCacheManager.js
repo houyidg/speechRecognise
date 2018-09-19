@@ -6,7 +6,7 @@ var fs = require("fs");
 var os = require("os");
 var TimeUtils_1 = require("../../util/TimeUtils");
 var path = require('path');
-var isDebug = true;
+var isDebug = false;
 var DefaultCacheManager = /** @class */ (function () {
     function DefaultCacheManager() {
         this.retryCount = 1;
@@ -147,13 +147,14 @@ var DefaultCacheManager = /** @class */ (function () {
         this.lastHandleFileNames.delete(path);
     };
     DefaultCacheManager.prototype.removeAllTaskCacheByOneLoop = function () {
-        FileUtils_1.FileUtils.rmdirOnlyFile(this.cacheResBasePath, [this.handleTaskListPath, this.audioSrcBasePath, this.translateTextPath]);
-        // FileUtils.rmdirOnlyFile(this.audioSrcBasePath);
+        // FileUtils.rmdirOnlyFile(this.cacheResBasePath, [this.handleTaskListPath, this.audioSrcBasePath, this.translateTextPath]);
+        FileUtils_1.FileUtils.rmdirOnlyFile(this.cacheResBasePath, [this.handleTaskListPath]);
     };
     DefaultCacheManager.prototype.removeAllTaskCacheByAtTime = function () {
         this.lastHandleFileNames.clear();
         this.failHandleFileNameMap.clear();
-        FileUtils_1.FileUtils.rmdirOnlyFile(this.handleTaskListPath, [this.audioSrcBasePath]);
+        FileUtils_1.FileUtils.rmdirOnlyFile(this.handleTaskListPath);
+        // FileUtils.rmdirOnlyFile(this.audioSrcBasePath);
     };
     DefaultCacheManager.prototype.saveTranslateText = function (sessionModel, fileNameExcludeSuffix, translateTextArr) {
         var translateTextPath = this.getTranslateTextPath() + path.sep + TimeUtils_1.TimeUtils.getNowFormatDate();

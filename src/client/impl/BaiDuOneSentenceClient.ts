@@ -9,7 +9,7 @@ import * as os from "os";
 import * as moment from 'moment';
 import { ISpeechRecongniseClient } from "../ISpeechRecongnise";
 import { exec } from "child_process";
-import { BAIDU_CONFIG } from '../../config';
+import { BAIDU_CONFIG, logger } from '../../config';
 const isDebug = false;
 const path = require('path');
 const RecongniseSpeechErrorByDivision = '-RecongniseSpeechErrorByDivision-';
@@ -71,7 +71,6 @@ export class BaiDuOneSentenceClient implements ISpeechRecongniseClient {
             // 返回参数
             return requestOptions;
         });
-
         let todayHour: any = moment().format('HH:mm:ss').split(':');
         let todaySecond = parseInt(`${todayHour[0] * 60 * 60}`) + parseInt(`${todayHour[1] * 60}`) + parseInt(`${todayHour[2]}`);
         let todayOffset = scanFileTimeByDay * 60 * 60 - todaySecond;
@@ -134,14 +133,14 @@ export class BaiDuOneSentenceClient implements ISpeechRecongniseClient {
                 .then((rs) => {
                     console.log('----------------Promise.all cost time: ', (new Date().getTime() / 1000 - startTime).toFixed(0), '秒 rs:', JSON.stringify(rs));
                 }, (e) => {
-                    console.log('----------------Promise.all catch  time: ', (new Date().getTime() / 1000 - startTime).toFixed(0), '秒 rs:', JSON.stringify(e));
+                    logger.error('----------------Promise.all catch  time: ', (new Date().getTime() / 1000 - startTime).toFixed(0), '秒 rs:', JSON.stringify(e));
                 });
             //continue get fail task
             retryModels = this.cacheManager.getRetryModelsByToday();
             this.cacheManager.removeAllTaskCacheByOneLoop();
         }
         this.cacheManager.removeAllTaskCacheByAtTime();
-        console.log('-----------------------------------------end handle all Task cost time:', (new Date().getTime() / 1000 - startTime).toFixed(0), '秒');
+        console.log('-----------------------------------------end handle all Task cost time:', (new Date().getTime() / 1000 - startTime).toFixed(0), '秒---------------------------');
         console.log('\n\r');
     }
     //nextModel
@@ -165,7 +164,7 @@ export class BaiDuOneSentenceClient implements ISpeechRecongniseClient {
         }, (e) => {
             this.cacheManager.saveFailTaskPath(sessionModel);
             let endTime = new Date().getTime() / 1000;
-            console.log('----------------end task catch fileName：', fileName, '  cost time: ', (endTime - startTime).toFixed(0), '秒 startHandleSingleVoice error：', JSON.stringify(e), ' ----------------');
+            logger.error('----------------end task catch fileName：', fileName, '  cost time: ', (endTime - startTime).toFixed(0), '秒 startHandleSingleVoice error：', JSON.stringify(e), ' ----------------');
             if (nextTaskCallback)
                 return nextTaskCallback();
         });
@@ -209,7 +208,7 @@ export class BaiDuOneSentenceClient implements ISpeechRecongniseClient {
                         return this.handleSingleVoice({ translatePath, newSuffix });
                     }, (rj) => {
                         if (rj) {
-                            console.log('handleSingleVoice catch rs', rj);
+                            logger.error('handleSingleVoice catch rs', rj);
                             return new Promise((rs, rj) => {
                                 rs(rs);
                             });

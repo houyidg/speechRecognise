@@ -80,3 +80,6 @@ never类型表示的是那些永不存在的值的类型。 例如，never类型
 ## github下载链接
 https://github.com/houyidg/speechRecognise/raw/httpbranch/temp/20161018145623_1006_18081970722.mp3
 https://github.com/houyidg/speechRecognise/blob/httpbranch/temp/20161018145623_1006_18081970722.mp3
+
+## 下载log4js
+npm install log4js -s

@@ -42,7 +42,7 @@ var fs = require("fs");
 var moment = require("moment");
 var child_process_1 = require("child_process");
 var config_1 = require("../../config");
-var isDebug = true;
+var isDebug = false;
 var path = require('path');
 var RecongniseSpeechErrorByDivision = '-RecongniseSpeechErrorByDivision-';
 var RecongniseSpeechErrorByTransForm = '-RecongniseSpeechErrorByTransForm-';
@@ -174,7 +174,7 @@ var BaiDuOneSentenceClient = /** @class */ (function () {
                                                 .then(function (rs) {
                                                 console.log('----------------Promise.all cost time: ', (new Date().getTime() / 1000 - startTime_1).toFixed(0), '秒 rs:', JSON.stringify(rs));
                                             }, function (e) {
-                                                console.log('----------------Promise.all catch  time: ', (new Date().getTime() / 1000 - startTime_1).toFixed(0), '秒 rs:', JSON.stringify(e));
+                                                config_1.logger.error('----------------Promise.all catch  time: ', (new Date().getTime() / 1000 - startTime_1).toFixed(0), '秒 rs:', JSON.stringify(e));
                                             })];
                                     case 1:
                                         _a.sent();
@@ -231,7 +231,7 @@ var BaiDuOneSentenceClient = /** @class */ (function () {
         }, function (e) {
             _this.cacheManager.saveFailTaskPath(sessionModel);
             var endTime = new Date().getTime() / 1000;
-            console.log('----------------end task catch fileName：', fileName, '  cost time: ', (endTime - startTime).toFixed(0), '秒 startHandleSingleVoice error：', JSON.stringify(e), ' ----------------');
+            config_1.logger.error('----------------end task catch fileName：', fileName, '  cost time: ', (endTime - startTime).toFixed(0), '秒 startHandleSingleVoice error：', JSON.stringify(e), ' ----------------');
             if (nextTaskCallback)
                 return nextTaskCallback();
         });
@@ -286,7 +286,7 @@ var BaiDuOneSentenceClient = /** @class */ (function () {
                                                 return _this.handleSingleVoice({ translatePath: translatePath, newSuffix: newSuffix });
                                             }, function (rj) {
                                                 if (rj) {
-                                                    console.log('handleSingleVoice catch rs', rj);
+                                                    config_1.logger.error('handleSingleVoice catch rs', rj);
                                                     return new Promise(function (rs, rj) {
                                                         rs(rs);
                                                     });

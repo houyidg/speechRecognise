@@ -10,6 +10,7 @@
         "baidu-aip-sdk": "^2.3.3",
         "core-js": "2.5.7",
         "fs": "0.0.1-security",
+        "log4js": "^3.0.5",
         "moment": "^2.22.2",
         "mysql": "^2.16.0",
         "node-fetch": "^2.2.0"

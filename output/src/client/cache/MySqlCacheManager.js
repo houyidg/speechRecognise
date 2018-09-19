@@ -49,6 +49,7 @@ var PhoneSessionModel_1 = require("../PhoneSessionModel");
 var DefaultCacheManager_1 = require("./DefaultCacheManager");
 var node_fetch_1 = require("node-fetch");
 var fs = require("fs");
+var config_1 = require("../../config");
 var mysql = require('mysql');
 var path = require('path');
 var maxRecogniseCount = 2;
@@ -64,18 +65,13 @@ var MySqlCacheManager = /** @class */ (function (_super) {
     MySqlCacheManager.prototype.init = function (_a) {
         var audioSrcBasePath = _a.audioSrcBasePath, cacheResBasePath = _a.cacheResBasePath, handleTaskPath = _a.handleTaskPath, divisionPath = _a.divisionPath, transformPath = _a.transformPath, translateTextPath = _a.translateTextPath;
         _super.prototype.init.call(this, { audioSrcBasePath: audioSrcBasePath, cacheResBasePath: cacheResBasePath, handleTaskPath: handleTaskPath, divisionPath: divisionPath, transformPath: transformPath, translateTextPath: translateTextPath });
-        this.connection = mysql.createConnection({
-            host: 'localhost',
-            user: 'root',
-            password: 'root',
-            database: 'call_center_data'
-        });
+        this.connection = mysql.createConnection(config_1.dbConfig);
     };
     MySqlCacheManager.prototype.saveTranslateText = function (sessionModel, fileNameExcludeSuffix, translateTextArr) {
         return __awaiter(this, void 0, void 0, function () {
             var _this = this;
             return __generator(this, function (_a) {
-                _super.prototype.saveTranslateText.call(this, sessionModel, fileNameExcludeSuffix, translateTextArr);
+                // super.saveTranslateText(sessionModel, fileNameExcludeSuffix, translateTextArr);
                 return [2 /*return*/, new Promise(function (rs, rj) {
                         sessionModel.call_content_baidu = translateTextArr.join();
                         var sql = 'UPDATE call_history SET call_content_baidu=? WHERE id = ?';

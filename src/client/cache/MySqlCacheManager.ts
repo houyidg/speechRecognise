@@ -2,6 +2,7 @@ import { PhoneSessionModel } from '../PhoneSessionModel';
 import { DefaultCacheManager } from './DefaultCacheManager';
 import fetch from 'node-fetch';
 import * as fs from "fs";
+import { dbConfig } from '../../config';
 const mysql = require('mysql');
 const path = require('path');
 const maxRecogniseCount = 2;
@@ -12,16 +13,11 @@ export class MySqlCacheManager extends DefaultCacheManager {
     private pageNo = 0;
     public init({ audioSrcBasePath, cacheResBasePath, handleTaskPath, divisionPath, transformPath, translateTextPath }) {
         super.init({ audioSrcBasePath, cacheResBasePath, handleTaskPath, divisionPath, transformPath, translateTextPath });
-        this.connection = mysql.createConnection({
-            host: 'localhost',
-            user: 'root',
-            password: 'root',
-            database: 'call_center_data'
-        });
+        this.connection = mysql.createConnection(dbConfig);
     }
 
     public async saveTranslateText(sessionModel: PhoneSessionModel, fileNameExcludeSuffix, translateTextArr: string[]) {
-        super.saveTranslateText(sessionModel, fileNameExcludeSuffix, translateTextArr);
+        // super.saveTranslateText(sessionModel, fileNameExcludeSuffix, translateTextArr);
         return new Promise((rs, rj) => {
             sessionModel.call_content_baidu = translateTextArr.join();
             let sql = 'UPDATE call_history SET call_content_baidu=? WHERE id = ?';
