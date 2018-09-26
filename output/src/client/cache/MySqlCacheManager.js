@@ -283,7 +283,6 @@ var MySqlCacheManager = /** @class */ (function (_super) {
                                     });
                                 }
                                 else {
-                                    // responseHeader.a.s;
                                     config_1.Elogger.error('downLoadFileByUrl contentType error ', contentType);
                                     resolve(-1);
                                 }

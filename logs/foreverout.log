@@ -14,3 +14,18 @@
 [32m[2018-09-26T16:43:10.359] [INFO] console - [39m-------------------------end handle all Task cost time: 10 秒---------------------------
 [32m[2018-09-26T16:43:10.360] [INFO] console - [39m
 
+[32m[2018-09-26T17:57:16.991] [INFO] zhuxiao - [39mSpeechRecongniseClient  还剩余 57774 秒开始定时执行, 每间隔 10 秒执行一次
+[32m[2018-09-26T17:57:16.993] [INFO] zhuxiao - [39m
+
+[32m[2018-09-26T17:57:16.993] [INFO] zhuxiao - [39m------------------------start handle------------------------------
+[32m[2018-09-26T17:57:17.042] [INFO] zhuxiao - [39m
+
+[32m[2018-09-26T17:57:17.042] [INFO] zhuxiao - [39m---getNeedHandleFiles rsArr: []
+[32m[2018-09-26T17:57:17.042] [INFO] zhuxiao - [39m---groupPromise: []
+[32m[2018-09-26T17:57:17.043] [INFO] zhuxiao - [39m---getNeedHandleFiles 从数据拿取数据,下载音频文件 cost time: 0 秒
+[32m[2018-09-26T17:57:17.043] [INFO] zhuxiao - [39m
+
+[32m[2018-09-26T17:57:17.043] [INFO] zhuxiao - [39m--------------------------------rmdirOnlyDir : C:\Users\Administrator\Documents\GitHub\speechRecognise\asset\audioPathCache  excludeDirs: []
+[32m[2018-09-26T17:57:17.044] [INFO] zhuxiao - [39m-------------------------end handle all Task cost time: 0 秒---------------------------
+[32m[2018-09-26T17:57:17.044] [INFO] zhuxiao - [39m
+

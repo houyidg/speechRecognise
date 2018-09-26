@@ -27,13 +27,13 @@ exports.Elogger = Elogger;
 var Clogger = Elogger;
 exports.Clogger = Clogger;
 var dbConfig = isDebug ? {
-    connectionLimit: 10,
+    connectionLimit: 20,
     host: 'localhost',
     user: 'root',
     password: 'root',
     database: 'call_center_data'
 } : {
-    connectionLimit: 10,
+    connectionLimit: 20,
     host: '10.168.109.3',
     user: 'dev',
     password: 'fQUcnNi919lIn@iC22ORb9',

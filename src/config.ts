@@ -41,5 +41,5 @@ const resolveAudioRetryCount = 1;//每次音频解析重试次数
 const pageCountByDb = 20;//数据库每次查询页数
 const requestTimeout = 30 * 60 * 1000;//每个请求超时时间
 const scanFileTimeByEveryDay = 10;//每天早上10点开始轮训转换为语音
-const scanFileTimeInterval = 10;//24小时间隔执行一次任务
+const scanFileTimeInterval = 24 * 60 * 60;//24小时间隔执行一次任务
 export { baiduConfig, Elogger, dbConfig, resolveAudioRetryCount, pageCountByDb, requestTimeout, scanFileTimeByEveryDay, Clogger, scanFileTimeInterval };
