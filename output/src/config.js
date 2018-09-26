@@ -49,5 +49,5 @@ var requestTimeout = 30 * 60 * 1000; //每个请求超时时间
 exports.requestTimeout = requestTimeout;
 var scanFileTimeByEveryDay = 10; //每天早上10点开始轮训转换为语音
 exports.scanFileTimeByEveryDay = scanFileTimeByEveryDay;
-var scanFileTimeInterval = 10; //24小时间隔执行一次任务
+var scanFileTimeInterval = 24 * 60 * 60; //24小时间隔执行一次任务
 exports.scanFileTimeInterval = scanFileTimeInterval;

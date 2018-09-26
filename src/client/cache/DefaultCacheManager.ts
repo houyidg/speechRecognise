@@ -165,13 +165,13 @@ export class DefaultCacheManager implements ICacheManager {
 
     public removeAllTaskCacheByOneLoop() {
         // FileUtils.rmdirOnlyFile(this.cacheResBasePath, [this.handleTaskListPath, this.audioSrcBasePath, this.translateTextPath]);
-        FileUtils.rmdirOnlyFile(this.cacheResBasePath, [this.handleTaskListPath]);
+        FileUtils.rmdirOnlyFile(this.cacheResBasePath, [this.handleTaskListPath, this.translateTextPath]);
     }
 
     public removeAllTaskCacheByAtTime() {
         this.lastHandleFileNames.clear();
         this.failHandleFileNameMap.clear();
-        FileUtils.rmdirOnlyFile(this.handleTaskListPath);
+        FileUtils.rmdirOnlyFile(this.handleTaskListPath, [this.translateTextPath]);
         // FileUtils.rmdirOnlyFile(this.audioSrcBasePath);
     }
 

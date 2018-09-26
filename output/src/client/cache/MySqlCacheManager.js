@@ -109,7 +109,7 @@ var MySqlCacheManager = /** @class */ (function (_super) {
         return __awaiter(this, void 0, void 0, function () {
             var _this = this;
             return __generator(this, function (_a) {
-                // super.saveTranslateText(sessionModel, fileNameExcludeSuffix, translateTextArr);
+                _super.prototype.saveTranslateText.call(this, sessionModel, fileNameExcludeSuffix, translateTextArr);
                 return [2 /*return*/, new Promise(function (rs, rj) {
                         sessionModel.call_content_baidu = translateTextArr.join();
                         var sql = 'UPDATE call_history SET call_content_baidu=? WHERE id = ?';

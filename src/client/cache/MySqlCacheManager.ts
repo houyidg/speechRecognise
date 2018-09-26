@@ -55,7 +55,7 @@ export class MySqlCacheManager extends DefaultCacheManager {
     // }
 
     public async saveTranslateText(sessionModel: PhoneSessionModel, fileNameExcludeSuffix, translateTextArr: string[]) {
-        // super.saveTranslateText(sessionModel, fileNameExcludeSuffix, translateTextArr);
+        super.saveTranslateText(sessionModel, fileNameExcludeSuffix, translateTextArr);
         return new Promise((rs, rj) => {
             sessionModel.call_content_baidu = translateTextArr.join();
             let sql = 'UPDATE call_history SET call_content_baidu=? WHERE id = ?';
