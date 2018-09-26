@@ -1,5 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+var config_1 = require("../config");
 var fs = require('fs');
 var path = require('path');
 var FileUtils = /** @class */ (function () {
@@ -7,7 +8,7 @@ var FileUtils = /** @class */ (function () {
     }
     FileUtils.rmdirOnlyFile = function (dir, excludeDirs) {
         if (excludeDirs === void 0) { excludeDirs = []; }
-        console.log('--------------------------------rmdirOnlyDir :', dir, ' excludeDirs:', excludeDirs);
+        config_1.Clogger.info('--------------------------------rmdirOnlyDir :', dir, ' excludeDirs:', excludeDirs);
         var arr = [dir];
         var current = undefined;
         var index = 0;

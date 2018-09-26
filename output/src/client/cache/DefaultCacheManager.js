@@ -30,18 +30,18 @@ var DefaultCacheManager = /** @class */ (function () {
         !fs.existsSync(divisionPath) && fs.mkdirSync(divisionPath);
         !fs.existsSync(transformPath) && fs.mkdirSync(transformPath);
         !fs.existsSync(translateTextPath) && fs.mkdirSync(translateTextPath);
-        isDebug && console.log('DefaultCacheManager audioSrcBasePath ', audioSrcBasePath);
-        isDebug && console.log('DefaultCacheManager cacheResBasePath ', cacheResBasePath);
-        isDebug && console.log('DefaultCacheManager handleTaskPath ', handleTaskPath);
-        isDebug && console.log('DefaultCacheManager divisionPath', divisionPath);
-        isDebug && console.log('DefaultCacheManager transformPath', transformPath);
-        isDebug && console.log('DefaultCacheManager translateTextPath', translateTextPath);
+        isDebug && config_1.Clogger.info('DefaultCacheManager audioSrcBasePath ', audioSrcBasePath);
+        isDebug && config_1.Clogger.info('DefaultCacheManager cacheResBasePath ', cacheResBasePath);
+        isDebug && config_1.Clogger.info('DefaultCacheManager handleTaskPath ', handleTaskPath);
+        isDebug && config_1.Clogger.info('DefaultCacheManager divisionPath', divisionPath);
+        isDebug && config_1.Clogger.info('DefaultCacheManager transformPath', transformPath);
+        isDebug && config_1.Clogger.info('DefaultCacheManager translateTextPath', translateTextPath);
     };
     DefaultCacheManager.prototype.getNeedHandleFiles = function () {
         var _this = this;
         this.scanCount++;
         var scanFiles = fs.readdirSync(this.getAudioSrcBasePath());
-        console.log('DefaultCacheManager 开始扫描指定目录下的文件,自动过滤非音频文件、已经解析的文件 扫描次数:', this.scanCount);
+        config_1.Clogger.info('DefaultCacheManager 开始扫描指定目录下的文件,自动过滤非音频文件、已经解析的文件 扫描次数:', this.scanCount);
         var meetFiles = scanFiles.filter(function (fileName) {
             if (_this.lastHandleFileNames.has(fileName)) {
                 return false;
@@ -49,17 +49,17 @@ var DefaultCacheManager = /** @class */ (function () {
             var absolutePath = "" + _this.getAudioSrcBasePath() + path.sep + fileName;
             var stat = fs.lstatSync(absolutePath);
             if (!stat.isFile()) {
-                isDebug && console.log('filter ', fileName, '  !stat.isFile():', !stat.isFile());
+                isDebug && config_1.Clogger.info('filter ', fileName, '  !stat.isFile():', !stat.isFile());
                 return false;
             }
             var isHandle = _this.isSaveTaskPath(fileName);
             if (isHandle) {
-                isDebug && console.log('filter ', fileName, '  isHandle:', isHandle);
+                isDebug && config_1.Clogger.info('filter ', fileName, '  isHandle:', isHandle);
                 return false;
             }
             var suffix = fileName.substring(fileName.lastIndexOf('.') + 1, fileName.length);
             if (_this.supportDocumentFomrat.indexOf(suffix) < 0) {
-                isDebug && console.log('filter ', fileName, '  只支持mp3和1分钟时长的pcm和wav格式音频');
+                isDebug && config_1.Clogger.info('filter ', fileName, '  只支持mp3和1分钟时长的pcm和wav格式音频');
                 return false;
             }
             return true;
@@ -102,7 +102,7 @@ var DefaultCacheManager = /** @class */ (function () {
             var audioPathContent = path + os.EOL;
             fs.appendFile(audioPath, audioPathContent, function (err) {
                 if (err)
-                    console.log('CacheManager saveTaskPath err', err);
+                    config_1.Clogger.info('CacheManager saveTaskPath err', err);
             });
             return false;
         }

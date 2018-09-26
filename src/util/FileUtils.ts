@@ -1,10 +1,11 @@
+import { Clogger } from "../config";
 
 const fs = require('fs')
 const path = require('path')
 export class FileUtils {
 
     public static rmdirOnlyFile(dir: string, excludeDirs: string[] = []) {
-        console.log('--------------------------------rmdirOnlyDir :', dir, ' excludeDirs:', excludeDirs);
+        Clogger.info('--------------------------------rmdirOnlyDir :', dir, ' excludeDirs:', excludeDirs);
         let arr = [dir]
         let current: string = undefined;
         let index = 0

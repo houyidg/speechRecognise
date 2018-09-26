@@ -83,3 +83,8 @@ https://github.com/houyidg/speechRecognise/blob/httpbranch/temp/20161018145623_1
 
 ## 下载log4js
 npm install log4js -s
+
+
+## run
+npm run dev
+npm run start

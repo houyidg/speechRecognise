@@ -1,5 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+var config_1 = require("../config");
 /**
  *
  * @param timeOffset hh:mm:ss
@@ -17,7 +18,7 @@ var TimeUtils = /** @class */ (function () {
             rsArr = TimeUtils.genAssignFormatTimeQuanTum(numberArr);
         }
         catch (error) {
-            console.log('getSecondByTimeOffset error', error);
+            config_1.Clogger.info('getSecondByTimeOffset error', error);
         }
         return rsArr;
     };

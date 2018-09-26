@@ -86,29 +86,24 @@ var BaiDuOneSentenceClient = /** @class */ (function () {
         // request参数请参考 https://github.com/request/request#requestoptions-callback
         baidu_aip_sdk_1.HttpClient.setRequestInterceptor(function (requestOptions) {
             // 查看参数
-            // console.log(requestOptions)
+            // Clogger.info(requestOptions)
             // 修改参数
             requestOptions.timeout = config_1.requestTimeout;
             // 返回参数
             return requestOptions;
         });
+        this.scanFileTimeInterval = config_1.scanFileTimeInterval * 1000;
         var todayHour = moment().format('HH:mm:ss').split(':');
         var todaySecond = parseInt("" + todayHour[0] * 60 * 60) + parseInt("" + todayHour[1] * 60) + parseInt("" + todayHour[2]);
-        var todayOffset = config_1.scanFileTimeByEveryDay * 60 * 60 - todaySecond;
-        if (todayOffset > 0) { //如果今天时间在规定时间之前就延时执行，在之后就直接执行
-            this.firstScanFileTime = todayOffset * 1000;
-        }
-        else {
-            this.firstScanFileTime = 0;
-        }
-        this.scanFileTimeInterval = 24 * 60 * 60 * 1000;
-        console.log('SpeechRecongniseClient this.firstScanFileTime:', this.firstScanFileTime / 1000, '秒     this.scanFileTimeInterval :', this.scanFileTimeInterval / (1000 * 60 * 60), 'h 间隔执行 ');
+        this.firstScanFileTime = (24 * 60 * 60 - todaySecond + config_1.scanFileTimeByEveryDay * 60 * 60 + config_1.scanFileTimeInterval) * 1000;
+        config_1.Clogger.info('SpeechRecongniseClient  还剩余', this.firstScanFileTime / 1000, '秒开始定时执行, 每间隔', config_1.scanFileTimeInterval, '秒执行一次');
     };
     BaiDuOneSentenceClient.prototype.start = function () {
         return __awaiter(this, void 0, void 0, function () {
             var _this = this;
             return __generator(this, function (_a) {
                 try {
+                    this.handle();
                     setTimeout(function () {
                         _this.handle();
                         setInterval(function () {
@@ -117,7 +112,7 @@ var BaiDuOneSentenceClient = /** @class */ (function () {
                     }, this.firstScanFileTime);
                 }
                 catch (e) {
-                    console.log('start  error', e);
+                    config_1.Clogger.info('start  error', e);
                 }
                 return [2 /*return*/];
             });
@@ -130,8 +125,8 @@ var BaiDuOneSentenceClient = /** @class */ (function () {
             return __generator(this, function (_b) {
                 switch (_b.label) {
                     case 0:
-                        console.log('\r\n');
-                        console.log('------------------------start handle------------------------------');
+                        config_1.Clogger.info('\r\n');
+                        config_1.Clogger.info('------------------------start handle------------------------------');
                         retryModels = [];
                         startTime = new Date().getTime() / 1000;
                         _loop_1 = function () {
@@ -140,12 +135,12 @@ var BaiDuOneSentenceClient = /** @class */ (function () {
                                 switch (_a.label) {
                                     case 0:
                                         meetModels.splice.apply(meetModels, [meetModels.length, 0].concat(retryModels));
-                                        console.log('\n\r');
-                                        console.log('--------------------------------loop Task  总共需要执行的任务:', meetModels.length, ' 包含重试的任务:', retryModels.length, ' \n:', meetModels);
+                                        config_1.Clogger.info('\n\r');
+                                        config_1.Clogger.info('--------------------------------loop Task  总共需要执行的任务:', meetModels.length, ' 包含重试的任务:', retryModels.length, ' \n:', meetModels);
                                         retryModels = [];
                                         needHandleTasks = meetModels.splice(0, Math.min(config_1.baiduConfig.qps, meetModels.length));
                                         concurrenceCount = needHandleTasks.length;
-                                        console.log('start 建立并发通道数:', concurrenceCount);
+                                        config_1.Clogger.info('start 建立并发通道数:', concurrenceCount);
                                         taskPromiseArr = [];
                                         _loop_2 = function (index) {
                                             var needModel = needHandleTasks[index];
@@ -153,12 +148,12 @@ var BaiDuOneSentenceClient = /** @class */ (function () {
                                                 //拿取剩余的任务执行
                                                 var nextModel = meetModels.pop();
                                                 if (nextModel) {
-                                                    console.log('--------------------------------拿取下一个任务：', nextModel, '   等待执行的任务: ', meetModels.length);
+                                                    config_1.Clogger.info('--------------------------------拿取下一个任务：', nextModel, '   等待执行的任务: ', meetModels.length);
                                                     return _this.assembleTask(nextModel, undefined);
                                                 }
                                                 else {
                                                     concurrenceCount--;
-                                                    console.log('--------------------------------并发通道 ', index, ' 执行完毕，还有剩余执行通道:', concurrenceCount);
+                                                    config_1.Clogger.info('--------------------------------并发通道 ', index, ' 执行完毕，还有剩余执行通道:', concurrenceCount);
                                                 }
                                             });
                                             taskPromiseArr.push(rs);
@@ -169,9 +164,9 @@ var BaiDuOneSentenceClient = /** @class */ (function () {
                                         startTime_1 = new Date().getTime() / 1000;
                                         return [4 /*yield*/, Promise.all(taskPromiseArr)
                                                 .then(function (rs) {
-                                                console.log('----------------Promise.all cost time: ', (new Date().getTime() / 1000 - startTime_1).toFixed(0), '秒 rs:', JSON.stringify(rs));
+                                                config_1.Clogger.info('----------------Promise.all cost time: ', (new Date().getTime() / 1000 - startTime_1).toFixed(0), '秒 rs:', JSON.stringify(rs));
                                             }, function (e) {
-                                                config_1.logger.error('----------------Promise.all catch  time: ', (new Date().getTime() / 1000 - startTime_1).toFixed(0), '秒 rs:', JSON.stringify(e));
+                                                config_1.Elogger.error('----------------Promise.all catch  time: ', (new Date().getTime() / 1000 - startTime_1).toFixed(0), '秒 rs:', JSON.stringify(e));
                                             })];
                                     case 1:
                                         _a.sent();
@@ -199,8 +194,8 @@ var BaiDuOneSentenceClient = /** @class */ (function () {
                         return [3 /*break*/, 1];
                     case 5:
                         this.cacheManager.removeAllTaskCacheByAtTime();
-                        console.log('-----------------------------------------end handle all Task cost time:', (new Date().getTime() / 1000 - startTime).toFixed(0), '秒---------------------------');
-                        console.log('\n\r');
+                        config_1.Clogger.info('-------------------------end handle all Task cost time:', (new Date().getTime() / 1000 - startTime).toFixed(0), '秒---------------------------');
+                        config_1.Clogger.info('\n\r');
                         return [2 /*return*/];
                 }
             });
@@ -216,19 +211,19 @@ var BaiDuOneSentenceClient = /** @class */ (function () {
         var fileNameExcludeSuffix = fileName.replace(suffix, '').replace('.', '');
         var audioData = fs.readFileSync(absolutePath);
         var isMp3 = fileName.toLowerCase().indexOf('mp3') > -1;
-        console.log('----------------start task  fileName：', fileName, ' suffix:', suffix, '  audio.length:', this.getAudioLen(audioData), ' ----------------');
+        config_1.Clogger.info('----------------start task  fileName：', fileName, ' suffix:', suffix, '  audio.length:', this.getAudioLen(audioData), ' ----------------');
         //real do 
         return this.startHandleSingleVoice({ sessionModel: sessionModel, absolutePath: absolutePath, fileNameExcludeSuffix: fileNameExcludeSuffix, suffix: suffix, isMp3: isMp3 }).then(function (rs) {
             _this.cacheManager.removeFailTaskPath(sessionModel);
             var endTime = new Date().getTime() / 1000;
-            console.log('----------------end task fileName：', fileName, ' cost time: ', (endTime - startTime).toFixed(0), '秒 startHandleSingleVoice rs：', JSON.stringify(rs), ' ----------------');
+            config_1.Clogger.info('----------------end task fileName：', fileName, ' cost time: ', (endTime - startTime).toFixed(0), '秒 startHandleSingleVoice rs：', JSON.stringify(rs), ' ----------------');
             //continue add task 
             if (nextTaskCallback)
                 return nextTaskCallback();
         }, function (e) {
             _this.cacheManager.saveFailTaskPath(sessionModel);
             var endTime = new Date().getTime() / 1000;
-            config_1.logger.error('----------------end task catch fileName：', fileName, '  cost time: ', (endTime - startTime).toFixed(0), '秒 startHandleSingleVoice error：', JSON.stringify(e), ' ----------------');
+            config_1.Elogger.error('----------------end task catch fileName：', fileName, '  cost time: ', (endTime - startTime).toFixed(0), '秒 startHandleSingleVoice error：', JSON.stringify(e), ' ----------------');
             if (nextTaskCallback)
                 return nextTaskCallback();
         });
@@ -247,7 +242,7 @@ var BaiDuOneSentenceClient = /** @class */ (function () {
                         return [4 /*yield*/, this.getVoicePlayTime(absolutePath)];
                     case 1:
                         rs = _b.sent();
-                        isDebug && console.log('playTime:', rs);
+                        isDebug && config_1.Clogger.info('playTime:', rs);
                         timeQuanTum = TimeUtils_1.TimeUtils.getSecondByTimeOffset(rs.playTime);
                         if (!(timeQuanTum.length > 1)) return [3 /*break*/, 7];
                         translateTextArr = [];
@@ -265,7 +260,7 @@ var BaiDuOneSentenceClient = /** @class */ (function () {
                                         nextPath = divisionPath;
                                         return [4 /*yield*/, this_2.divisionVoiceByTime({ startTime: startTime, duration: duration, srcPath: srcPath, divisionPath: divisionPath })
                                                 .then(function (rs) {
-                                                isDebug && console.log('divisionVoiceByTime rs', rs);
+                                                isDebug && config_1.Clogger.info('divisionVoiceByTime rs', rs);
                                                 if (!isMp3) {
                                                     return new Promise(function (rs, rj) { rs(1); });
                                                 }
@@ -277,13 +272,13 @@ var BaiDuOneSentenceClient = /** @class */ (function () {
                                                     return _this.transformMp3ToPcm({ divisionPath: divisionPath, transformPath: transformPath });
                                                 }
                                             }).then(function (rs) {
-                                                isDebug && console.log('transformMp3ToPcm rs', rs);
+                                                isDebug && config_1.Clogger.info('transformMp3ToPcm rs', rs);
                                                 // todo 翻译
                                                 var translatePath = nextPath;
                                                 return _this.handleSingleVoice({ translatePath: translatePath, newSuffix: newSuffix });
                                             }, function (rj) {
                                                 if (rj) {
-                                                    config_1.logger.error('handleSingleVoice catch rs', rj);
+                                                    config_1.Elogger.error('handleSingleVoice catch rs', rj);
                                                     return new Promise(function (rs, rj) {
                                                         rs(rs);
                                                     });
@@ -335,7 +330,7 @@ var BaiDuOneSentenceClient = /** @class */ (function () {
                     case 7:
                         //转换分割音频时间段异常
                         rsCode = 2;
-                        isDebug && console.log('timeQuanTum 转换分割音频时间段异常', timeQuanTum);
+                        isDebug && config_1.Clogger.info('timeQuanTum 转换分割音频时间段异常', timeQuanTum);
                         _b.label = 8;
                     case 8: return [2 /*return*/, new Promise(function (rs, rj) {
                             if (rsCode == 1) {
@@ -360,15 +355,15 @@ var BaiDuOneSentenceClient = /** @class */ (function () {
                         if (translatePath && voice && voice.length > 0) {
                             // 识别本地文件
                             _this.client.recognize(voice, newSuffix, 16000).then(function (result) {
-                                isDebug && console.log('handleSingleVoice recognize voice name:', translatePath, " <recognize>: " + JSON.stringify(result));
+                                isDebug && config_1.Clogger.info('handleSingleVoice recognize voice name:', translatePath, " <recognize>: " + JSON.stringify(result));
                                 resolve(result);
                             }, function (err) {
-                                isDebug && console.log('handleSingleVoice err voice name:', translatePath, "   err:" + err);
+                                isDebug && config_1.Clogger.info('handleSingleVoice err voice name:', translatePath, "   err:" + err);
                                 rejects(err);
                             });
                         }
                         else {
-                            isDebug && console.log('handleSingleVoice voice or voicePath is null ');
+                            isDebug && config_1.Clogger.info('handleSingleVoice voice or voicePath is null ');
                             rejects(-1);
                         }
                     })];
@@ -384,7 +379,7 @@ var BaiDuOneSentenceClient = /** @class */ (function () {
             var cmdStr;
             return __generator(this, function (_a) {
                 cmdStr = "ffmpeg -i \"" + voicePath + "\"";
-                isDebug && console.log('getVoiceTime  cmdStr ', cmdStr);
+                isDebug && config_1.Clogger.info('getVoiceTime  cmdStr ', cmdStr);
                 return [2 /*return*/, new Promise(function (resolve, rejects) {
                         child_process_1.exec(cmdStr, { encoding: 'utf8' }, function (err, stdout, stderr) {
                             var time; //Duration: 00:13:02.64
@@ -395,12 +390,12 @@ var BaiDuOneSentenceClient = /** @class */ (function () {
                             if ((startIndex = stderr.indexOf("Duration")) > -1) {
                                 startIndex = startIndex + matchStrLen + realStartOffset;
                                 time = stderr.substring(startIndex, startIndex + endIndex);
-                                isDebug && console.log('getVoiceTime stderr time ', time);
+                                isDebug && config_1.Clogger.info('getVoiceTime stderr time ', time);
                             }
                             if ((startIndex = stdout.indexOf("Duration")) > -1) {
                                 startIndex = startIndex + matchStrLen + realStartOffset;
                                 time = stdout.substring(startIndex, startIndex + endIndex);
-                                isDebug && console.log('getVoiceTime  stdout time ', time);
+                                isDebug && config_1.Clogger.info('getVoiceTime  stdout time ', time);
                             }
                             var rs = { playTime: "-1" };
                             if (time) {
@@ -421,12 +416,12 @@ var BaiDuOneSentenceClient = /** @class */ (function () {
             var cmdStr;
             return __generator(this, function (_b) {
                 cmdStr = "ffmpeg -i \"" + srcPath + "\" -y -ss " + startTime + " -t " + duration + " -acodec copy \"" + divisionPath + "\"";
-                isDebug && console.log('divisionVoiceByTime cmdStr:' + cmdStr);
+                isDebug && config_1.Clogger.info('divisionVoiceByTime cmdStr:' + cmdStr);
                 return [2 /*return*/, new Promise(function (resolve, rejects) {
                         child_process_1.exec(cmdStr, function (err, stdout, stderr) {
-                            // err && console.log('divisionVoiceByTime err:' + err);
-                            // stdout && console.log('divisionVoiceByTime stdout:' + stdout);
-                            // stderr && console.log('divisionVoiceByTime stderr:' + stderr);
+                            // err && Clogger.info('divisionVoiceByTime err:' + err);
+                            // stdout && Clogger.info('divisionVoiceByTime stdout:' + stdout);
+                            // stderr && Clogger.info('divisionVoiceByTime stderr:' + stderr);
                             resolve(1);
                         });
                     })];
@@ -439,12 +434,12 @@ var BaiDuOneSentenceClient = /** @class */ (function () {
             var cmdStr;
             return __generator(this, function (_b) {
                 cmdStr = "ffmpeg -y  -i \"" + divisionPath + "\"  -acodec pcm_s16le -f s16le -ac 1 -ar 16000  \"" + transformPath + "\"";
-                isDebug && console.log('transformMp3ToPcm cmdStr:' + cmdStr);
+                isDebug && config_1.Clogger.info('transformMp3ToPcm cmdStr:' + cmdStr);
                 return [2 /*return*/, new Promise(function (resolve, rejects) {
                         child_process_1.exec(cmdStr, function (err, stdout, stderr) {
-                            // err && console.log('divisionVoiceByTime err:' + err);
-                            // stdout && console.log('divisionVoiceByTime stdout:' + stdout);
-                            // stderr && console.log('divisionVoiceByTime stderr:' + stderr);
+                            // err && Clogger.info('divisionVoiceByTime err:' + err);
+                            // stdout && Clogger.info('divisionVoiceByTime stdout:' + stdout);
+                            // stderr && Clogger.info('divisionVoiceByTime stderr:' + stderr);
                             resolve(1);
                         });
                     })];
@@ -461,14 +456,14 @@ var BaiDuOneSentenceClient = /** @class */ (function () {
 exports.BaiDuOneSentenceClient = BaiDuOneSentenceClient;
 // // 识别本地文件，附带参数
 // client.recognize(voiceBuffer, "pcm", 16000， {dev_pid: "1536", cuid: Math.random()}}).then(function (result) {
-//     console.log("<recognize>: " + JSON.stringify(result));
+//     Clogger.info("<recognize>: " + JSON.stringify(result));
 // }, function(err) {
-//     console.log(err);
+//     Clogger.info(err);
 // });
 // 识别远程语音文件
 // client.recognizeByUrl("https://github.com/Baidu-AIP/sdk-demo/blob/master/speech/assets/16k_test.pcm", null,
 //     "pcm", 8000).then(function (result) {
-//         console.log("语音识别远程音频文件结果: " + JSON.stringify(result));
+//         Clogger.info("语音识别远程音频文件结果: " + JSON.stringify(result));
 //     }, function (err) {
-//         console.log(err);
+//         Clogger.info(err);
 //     });

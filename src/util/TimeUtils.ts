@@ -1,3 +1,5 @@
+import { Clogger } from "../config";
+
 /**
  * 
  * @param timeOffset hh:mm:ss
@@ -12,7 +14,7 @@ export class TimeUtils {
             TimeUtils.genTimeQuantum(secondTime, numberArr);
             rsArr = TimeUtils.genAssignFormatTimeQuanTum(numberArr);
         } catch (error) {
-            console.log('getSecondByTimeOffset error', error);
+            Clogger.info('getSecondByTimeOffset error', error);
         }
         return rsArr;
     }

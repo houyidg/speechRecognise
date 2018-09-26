@@ -4,7 +4,7 @@ import { ICacheManager } from './ICacheManager';
 import * as fs from "fs";
 import * as os from "os";
 import { TimeUtils } from '../../util/TimeUtils';
-import { resolveAudioRetryCount } from '../../config';
+import { resolveAudioRetryCount, Clogger } from '../../config';
 const path = require('path');
 const isDebug = false;
 export class DefaultCacheManager implements ICacheManager {
@@ -38,18 +38,18 @@ export class DefaultCacheManager implements ICacheManager {
         !fs.existsSync(transformPath) && fs.mkdirSync(transformPath);
         !fs.existsSync(translateTextPath) && fs.mkdirSync(translateTextPath);
 
-        isDebug && console.log('DefaultCacheManager audioSrcBasePath ', audioSrcBasePath);
-        isDebug && console.log('DefaultCacheManager cacheResBasePath ', cacheResBasePath);
-        isDebug && console.log('DefaultCacheManager handleTaskPath ', handleTaskPath);
-        isDebug && console.log('DefaultCacheManager divisionPath', divisionPath);
-        isDebug && console.log('DefaultCacheManager transformPath', transformPath);
-        isDebug && console.log('DefaultCacheManager translateTextPath', translateTextPath);
+        isDebug && Clogger.info('DefaultCacheManager audioSrcBasePath ', audioSrcBasePath);
+        isDebug && Clogger.info('DefaultCacheManager cacheResBasePath ', cacheResBasePath);
+        isDebug && Clogger.info('DefaultCacheManager handleTaskPath ', handleTaskPath);
+        isDebug && Clogger.info('DefaultCacheManager divisionPath', divisionPath);
+        isDebug && Clogger.info('DefaultCacheManager transformPath', transformPath);
+        isDebug && Clogger.info('DefaultCacheManager translateTextPath', translateTextPath);
     }
 
     public getNeedHandleFiles(): any {
         this.scanCount++;
         let scanFiles = fs.readdirSync(this.getAudioSrcBasePath());
-        console.log('DefaultCacheManager 开始扫描指定目录下的文件,自动过滤非音频文件、已经解析的文件 扫描次数:', this.scanCount);
+        Clogger.info('DefaultCacheManager 开始扫描指定目录下的文件,自动过滤非音频文件、已经解析的文件 扫描次数:', this.scanCount);
         let meetFiles: string[] = scanFiles.filter((fileName) => {
             if (this.lastHandleFileNames.has(fileName)) {
                 return false;
@@ -57,17 +57,17 @@ export class DefaultCacheManager implements ICacheManager {
             let absolutePath = `${this.getAudioSrcBasePath()}${path.sep}${fileName}`;
             let stat = fs.lstatSync(absolutePath)
             if (!stat.isFile()) {
-                isDebug && console.log('filter ', fileName, '  !stat.isFile():', !stat.isFile());
+                isDebug && Clogger.info('filter ', fileName, '  !stat.isFile():', !stat.isFile());
                 return false;
             }
             let isHandle = this.isSaveTaskPath(fileName);
             if (isHandle) {
-                isDebug && console.log('filter ', fileName, '  isHandle:', isHandle);
+                isDebug && Clogger.info('filter ', fileName, '  isHandle:', isHandle);
                 return false;
             }
             let suffix = fileName.substring(fileName.lastIndexOf('.') + 1, fileName.length);
             if (this.supportDocumentFomrat.indexOf(suffix) < 0) {
-                isDebug && console.log('filter ', fileName, '  只支持mp3和1分钟时长的pcm和wav格式音频');
+                isDebug && Clogger.info('filter ', fileName, '  只支持mp3和1分钟时长的pcm和wav格式音频');
                 return false;
             }
             return true;
@@ -113,7 +113,7 @@ export class DefaultCacheManager implements ICacheManager {
             let audioPathContent = path + os.EOL;
             fs.appendFile(audioPath, audioPathContent, (err) => {
                 if (err)
-                    console.log('CacheManager saveTaskPath err', err);
+                    Clogger.info('CacheManager saveTaskPath err', err);
             });
             return false;
         }
