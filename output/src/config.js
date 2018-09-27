@@ -1,7 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 // 设置APPID/AK/SK
-var isDebug = true;
+var isDebug = false;
 var log4js = require('log4js');
 var path = require('path');
 log4js.configure({
