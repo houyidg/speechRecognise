@@ -1,5 +1,5 @@
 // 设置APPID/AK/SK
-let isDebug = false;
+let isDebug = true;
 var log4js = require('log4js');
 const path = require('path');
 
