@@ -69,7 +69,6 @@ export class MySqlCacheManager extends DefaultCacheManager {
         });
     }
 
-
     private async  addBaiDuRecogniseCount(id) {
         let selectListPromise = await new Promise<any>((rs, rj) => {
             let searchSql = `SELECT baidu_recognise_count FROM call_history WHERE id=?`;
@@ -125,7 +124,7 @@ export class MySqlCacheManager extends DefaultCacheManager {
         let models: PhoneSessionModel[] = [];
         let rsArr = await this.getAllUnTranslateList();
         Clogger.info('\r\n');
-        Clogger.info('---getNeedHandleFiles rsArr:', rsArr);
+        Clogger.info('---getNeedHandleFiles rsArr:', rsArr && rsArr.length);
         let promiseArr = [];
         Promise.all([]);
         if (rsArr && rsArr.length > 0) {

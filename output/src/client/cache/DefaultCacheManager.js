@@ -148,14 +148,14 @@ var DefaultCacheManager = /** @class */ (function () {
         this.lastHandleFileNames.delete(path);
     };
     DefaultCacheManager.prototype.removeAllTaskCacheByOneLoop = function () {
-        // FileUtils.rmdirOnlyFile(this.cacheResBasePath, [this.handleTaskListPath, this.audioSrcBasePath, this.translateTextPath]);
-        FileUtils_1.FileUtils.rmdirOnlyFile(this.cacheResBasePath, [this.handleTaskListPath, this.translateTextPath]);
+        FileUtils_1.FileUtils.rmdirOnlyFile(this.transformPath);
+        FileUtils_1.FileUtils.rmdirOnlyFile(this.divisionPath);
     };
     DefaultCacheManager.prototype.removeAllTaskCacheByAtTime = function () {
         this.lastHandleFileNames.clear();
         this.failHandleFileNameMap.clear();
-        FileUtils_1.FileUtils.rmdirOnlyFile(this.handleTaskListPath, [this.translateTextPath]);
-        // FileUtils.rmdirOnlyFile(this.audioSrcBasePath);
+        FileUtils_1.FileUtils.rmdirOnlyFile(this.audioSrcBasePath);
+        FileUtils_1.FileUtils.rmdirOnlyFile(this.handleTaskListPath);
     };
     DefaultCacheManager.prototype.saveTranslateText = function (sessionModel, fileNameExcludeSuffix, translateTextArr) {
         var translateTextPath = this.getTranslateTextPath() + path.sep + TimeUtils_1.TimeUtils.getNowFormatDate();

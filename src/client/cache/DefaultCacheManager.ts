@@ -164,15 +164,15 @@ export class DefaultCacheManager implements ICacheManager {
     }
 
     public removeAllTaskCacheByOneLoop() {
-        // FileUtils.rmdirOnlyFile(this.cacheResBasePath, [this.handleTaskListPath, this.audioSrcBasePath, this.translateTextPath]);
-        FileUtils.rmdirOnlyFile(this.cacheResBasePath, [this.handleTaskListPath, this.translateTextPath]);
+        FileUtils.rmdirOnlyFile(this.transformPath);
+        FileUtils.rmdirOnlyFile(this.divisionPath);
     }
 
     public removeAllTaskCacheByAtTime() {
         this.lastHandleFileNames.clear();
         this.failHandleFileNameMap.clear();
-        FileUtils.rmdirOnlyFile(this.handleTaskListPath, [this.translateTextPath]);
-        // FileUtils.rmdirOnlyFile(this.audioSrcBasePath);
+        FileUtils.rmdirOnlyFile(this.audioSrcBasePath);
+        FileUtils.rmdirOnlyFile(this.handleTaskListPath);
     }
 
     public saveTranslateText(sessionModel: PhoneSessionModel, fileNameExcludeSuffix, translateTextArr: string[]) {

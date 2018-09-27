@@ -123,6 +123,24 @@ var BaiDuOneSentenceClient = /** @class */ (function (_super) {
             });
         });
     };
+    BaiDuOneSentenceClient.prototype.handleApiResult = function (_a) {
+        var translateTextArr = _a.translateTextArr, apiError = _a.apiError, rs = _a.rs, fileNameExcludeSuffix = _a.fileNameExcludeSuffix, suffix = _a.suffix, nextPath = _a.nextPath;
+        try {
+            var result = rs.result;
+            if (result && result[0]) {
+                translateTextArr.push(result[0]);
+                return true;
+            }
+            else {
+                translateTextArr.push(RecongniseSpeechErrorByBaiduApi);
+                apiError.push({ fileName: fileNameExcludeSuffix + '.' + suffix, nextPath: nextPath, rs: rs });
+            }
+        }
+        catch (e) {
+            config_1.Clogger.error('handleApiResult catch e', e);
+        }
+        return false;
+    };
     return BaiDuOneSentenceClient;
 }(BaseClient_1.BaseClient));
 exports.BaiDuOneSentenceClient = BaiDuOneSentenceClient;

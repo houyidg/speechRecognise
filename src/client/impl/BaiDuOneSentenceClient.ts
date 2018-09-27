@@ -75,7 +75,21 @@ export class BaiDuOneSentenceClient extends BaseClient {
             }
         });
     }
-
+    handleApiResult({ translateTextArr, apiError, rs, fileNameExcludeSuffix, suffix, nextPath }) {
+        try {
+            let { result } = rs;
+            if (result && result[0]) {
+                translateTextArr.push(result[0]);
+                return true;
+            } else {
+                translateTextArr.push(RecongniseSpeechErrorByBaiduApi);
+                apiError.push({ fileName: fileNameExcludeSuffix + '.' + suffix, nextPath: nextPath, rs: rs });
+            }
+        } catch (e) {
+            Clogger.error('handleApiResult catch e', e);
+        }
+        return false;
+    }
 }
 
 // // 识别本地文件，附带参数

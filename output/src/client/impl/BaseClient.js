@@ -42,22 +42,6 @@ var moment = require("moment");
 var child_process_1 = require("child_process");
 var config_1 = require("../../config");
 var path = require('path');
-var RecongniseSpeechErrorByDivision = '-RecongniseSpeechErrorByDivision-';
-var RecongniseSpeechErrorByTransForm = '-RecongniseSpeechErrorByTransForm-';
-var RecongniseSpeechErrorByBaiduApi = '-RecongniseSpeechErrorByBaiduApi-';
-// 3300	用户输入错误	输入参数不正确	请仔细核对文档及参照demo，核对输入参数
-// 3301	用户输入错误	音频质量过差	请上传清晰的音频
-// 3302	用户输入错误	鉴权失败	token字段校验失败。请使用正确的API_KEY 和 SECRET_KEY生成
-// 3303	服务端问题	语音服务器后端问题	请将api返回结果反馈至论坛或者QQ群
-// 3304	用户请求超限	用户的请求QPS超限	请降低识别api请求频率 （qps以appId计算，移动端如果共用则累计）
-// 3305	用户请求超限	用户的日pv（日请求量）超限	请“申请提高配额”，如果暂未通过，请降低日请求量
-// 3307	服务端问题	语音服务器后端识别出错问题	目前请确保16000的采样率音频时长低于30s，8000的采样率音频时长低于60s。如果仍有问题，请将api返回结果反馈至论坛或者QQ群
-// 3308	用户输入错误	音频过长	音频时长不超过60s，请将音频时长截取为60s以下
-// 3309	用户输入错误	音频数据问题	服务端无法将音频转为pcm格式，可能是长度问题，音频格式问题等。 请将输入的音频时长截取为60s以下，并核对下音频的编码，是否是8K或者16K， 16bits，单声道。
-// 3310	用户输入错误	输入的音频文件过大	语音文件共有3种输入方式： json 里的speech 参数（base64后）； 直接post 二进制数据，及callback参数里url。 分别对应三种情况：json超过10M；直接post的语音文件超过10M；callback里回调url的音频文件超过10M
-// 3311	用户输入错误	采样率rate参数不在选项里	目前rate参数仅提供8000,16000两种，填写4000即会有此错误
-// 3312	用户输入错误	音频格式format参数不在选项里	目前格式仅仅支持pcm，wav或amr，如填写mp3即会有此错误
-var baiduErrorCode = [3300, 3301, 3302, 3304, 3305, 3308, 3310, 3311, 3312];
 /**
  * 对mp3,pcm,wav格式音频进行翻译
  * MP3:超过一分钟时长需要分割，再转换为pcm，再通过api翻译成文字写入文件
@@ -231,7 +215,7 @@ var BaseClient = /** @class */ (function () {
                         translateTextArr = [];
                         apiError = [];
                         _loop_3 = function (index, len) {
-                            var startTime, nextTime, duration, srcPath, divisionPath, nextPath, rs_1, result, err_no;
+                            var startTime, nextTime, duration, srcPath, divisionPath, nextPath, rs_1, isApiOk;
                             return __generator(this, function (_a) {
                                 switch (_a.label) {
                                     case 0:
@@ -269,18 +253,9 @@ var BaseClient = /** @class */ (function () {
                                             })];
                                     case 1:
                                         rs_1 = _a.sent();
-                                        result = rs_1.result;
-                                        if (result && result[0]) {
-                                            translateTextArr.push(result[0]);
-                                        }
-                                        else {
-                                            err_no = rs_1.err_no;
-                                            if (err_no && baiduErrorCode.indexOf(err_no) > -1) { //音频质量差,不用重试
-                                            }
-                                            else {
-                                                translateTextArr.push(RecongniseSpeechErrorByBaiduApi);
-                                            }
-                                            apiError.push({ fileName: fileNameExcludeSuffix + '.' + suffix, nextPath: nextPath, rs: rs_1 });
+                                        isApiOk = this_2.handleApiResult({ translateTextArr: translateTextArr, apiError: apiError, rs: rs_1, fileNameExcludeSuffix: fileNameExcludeSuffix, suffix: suffix, nextPath: nextPath });
+                                        if (!isApiOk) {
+                                            rsCode = 3;
                                         }
                                         return [2 /*return*/];
                                 }
@@ -298,15 +273,10 @@ var BaseClient = /** @class */ (function () {
                     case 4:
                         index++;
                         return [3 /*break*/, 2];
-                    case 5:
-                        if (translateTextArr.indexOf(RecongniseSpeechErrorByBaiduApi) > -1) {
-                            rsCode = 3;
-                        }
-                        //存储到数据库
-                        // //存储到文件
-                        return [4 /*yield*/, this.cacheManager.saveTranslateText(sessionModel, fileNameExcludeSuffix, translateTextArr)];
+                    case 5: 
+                    // //存储到文件
+                    return [4 /*yield*/, this.cacheManager.saveTranslateText(sessionModel, fileNameExcludeSuffix, translateTextArr)];
                     case 6:
-                        //存储到数据库
                         // //存储到文件
                         _b.sent();
                         return [3 /*break*/, 8];
@@ -326,6 +296,10 @@ var BaseClient = /** @class */ (function () {
                 }
             });
         });
+    };
+    BaseClient.prototype.handleApiResult = function (_a) {
+        var translateTextArr = _a.translateTextArr, apiError = _a.apiError, rs = _a.rs, fileNameExcludeSuffix = _a.fileNameExcludeSuffix, suffix = _a.suffix, nextPath = _a.nextPath;
+        return false;
     };
     BaseClient.prototype.handleSingleVoice = function (_a) {
         var translatePath = _a.translatePath, _b = _a.newSuffix, newSuffix = _b === void 0 ? 'pcm' : _b;

@@ -200,7 +200,7 @@ var MySqlCacheManager = /** @class */ (function (_super) {
                     case 1:
                         rsArr = _b.sent();
                         config_1.Clogger.info('\r\n');
-                        config_1.Clogger.info('---getNeedHandleFiles rsArr:', rsArr);
+                        config_1.Clogger.info('---getNeedHandleFiles rsArr:', rsArr && rsArr.length);
                         promiseArr = [];
                         Promise.all([]);
                         if (rsArr && rsArr.length > 0) {
