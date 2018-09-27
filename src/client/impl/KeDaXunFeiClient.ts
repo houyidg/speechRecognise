@@ -22,11 +22,10 @@ export class KeDaXunFeiClient extends BaseClient {
     }
 
     async handleSingleVoice({ translatePath, newSuffix = 'pcm' }): Promise<any> {
-        let audio = fs.readFileSync(translatePath);
         let rs;
         try {
-            rs = await this.client.IAT(audio, IATEngineType.SMS16K_Mandarin, IATAueType.RAW);
-            Clogger.info('handleSingleVoice rs', rs);
+            let audio = fs.readFileSync(translatePath);
+            rs = this.client.IAT(audio, IATEngineType.SMS16K_Mandarin, IATAueType.RAW);
         } catch (error) {
             // Oops...
             Clogger.info('handleSingleVoice error', error);
