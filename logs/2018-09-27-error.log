@@ -1,0 +1,16 @@
+[2018-09-27T09:09:34.932] [INFO] fileOupt - SpeechRecongniseClient  还剩余 175826 秒开始定时执行, 每间隔 86400 秒执行一次
+[2018-09-27T09:09:34.934] [INFO] fileOupt - 
+
+[2018-09-27T09:09:34.934] [INFO] fileOupt - ------------------------start handle------------------------------
+[2018-09-27T09:09:44.940] [ERROR] fileOupt - MySqlCacheManager getAllUnTranslateList [SELECT ERROR] -  connect ETIMEDOUT
+[2018-09-27T09:09:44.941] [INFO] fileOupt - 
+
+[2018-09-27T09:09:44.941] [INFO] fileOupt - ---getNeedHandleFiles rsArr: false
+[2018-09-27T09:09:44.941] [INFO] fileOupt - ---groupPromise: []
+[2018-09-27T09:09:44.941] [INFO] fileOupt - ---getNeedHandleFiles 从数据拿取数据,下载音频文件 cost time: 10 秒
+[2018-09-27T09:09:44.941] [INFO] fileOupt - 
+
+[2018-09-27T09:09:44.941] [INFO] fileOupt - --------------------------------rmdirOnlyDir : C:\Users\Administrator\Documents\GitHub\speechRecognise\asset\audioPathCache  excludeDirs: [ 'C:\\Users\\Administrator\\Documents\\GitHub\\speechRecognise\\asset\\translateTexts' ]
+[2018-09-27T09:09:44.944] [INFO] fileOupt - -------------------------end handle all Task cost time: 10 秒---------------------------
+[2018-09-27T09:09:44.944] [INFO] fileOupt - 
+

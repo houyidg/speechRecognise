@@ -6,14 +6,14 @@ var log4js = require('log4js');
 var path = require('path');
 log4js.configure({
     appenders: {
-        zhuxiao: {
+        fileOupt: {
             type: 'dateFile', filename: "logs" + path.sep, pattern: "yyyy-MM-dd-error.log", alwaysIncludePattern: true, absolute: true, maxLogSize: 104800,
             backups: 10
         }, console: {
             type: 'console'
         }
     },
-    categories: { default: { appenders: isDebug ? ['console'] : ['error'], level: 'info' } }
+    categories: { default: { appenders: isDebug ? ['console'] : ['fileOupt'], level: 'info' } }
 });
 var baiduConfig = {
     APP_ID: "11774993",
@@ -22,7 +22,7 @@ var baiduConfig = {
     qps: 8
 };
 exports.baiduConfig = baiduConfig;
-var Elogger = log4js.getLogger('zhuxiao');
+var Elogger = log4js.getLogger(isDebug ? 'console' : 'fileOupt');
 exports.Elogger = Elogger;
 var Clogger = Elogger;
 exports.Clogger = Clogger;

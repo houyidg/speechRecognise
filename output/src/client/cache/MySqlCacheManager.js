@@ -252,13 +252,10 @@ var MySqlCacheManager = /** @class */ (function (_super) {
     MySqlCacheManager.prototype.downLoadFileByUrl = function (id, url, audioBasePath) {
         if (audioBasePath === void 0) { audioBasePath = this.audioSrcBasePath; }
         return __awaiter(this, void 0, void 0, function () {
-            var fileName_1, audioPath_1;
             var _this = this;
             return __generator(this, function (_a) {
                 try {
-                    fileName_1 = url.substring(url.lastIndexOf('/') + 1, url.length);
-                    audioPath_1 = audioBasePath + path.sep + url.substring(url.lastIndexOf('/') + 1, url.length);
-                    config_1.Clogger.info('downLoadFileByUrl fileName:', fileName_1, '   audioPath:', audioPath_1, '  url:', url);
+                    config_1.Clogger.info('downLoadFileByUrl audioBasePath:', audioBasePath, '  url:', url);
                     return [2 /*return*/, node_fetch_1.default(url).then(function (res) {
                             return new Promise(function (resolve, reject) {
                                 config_1.Clogger.info('downLoadFileByUrl res', res.status);
@@ -266,6 +263,9 @@ var MySqlCacheManager = /** @class */ (function (_super) {
                                 var contentType = responseHeader.get('Content-Type');
                                 config_1.Clogger.info('downLoadFileByUrl contentType', contentType);
                                 if (contentType.toLowerCase().indexOf('audio') > -1) {
+                                    var fileName_1 = url.substring(url.lastIndexOf('/') + 1, url.length);
+                                    var audioPath_1 = audioBasePath + path.sep + url.substring(url.lastIndexOf('/') + 1, url.length);
+                                    config_1.Clogger.info('downLoadFileByUrl fileName:', fileName_1, '   audioPath:', audioPath_1, '  url:', url);
                                     var dest = fs.createWriteStream(audioPath_1);
                                     res.body.pipe(dest);
                                     res.body.on('error', function (err) {

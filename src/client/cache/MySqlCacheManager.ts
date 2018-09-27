@@ -166,9 +166,7 @@ export class MySqlCacheManager extends DefaultCacheManager {
      */
     private async downLoadFileByUrl(id, url: string, audioBasePath = this.audioSrcBasePath): Promise<any> {
         try {
-            let fileName = url.substring(url.lastIndexOf('/') + 1, url.length);
-            let audioPath = audioBasePath + path.sep + url.substring(url.lastIndexOf('/') + 1, url.length);
-            Clogger.info('downLoadFileByUrl fileName:', fileName, '   audioPath:', audioPath, '  url:', url);
+            Clogger.info('downLoadFileByUrl audioBasePath:', audioBasePath, '  url:', url);
             return fetch(url).then(
                 (res) => {
                     return new Promise((resolve, reject) => {
@@ -177,6 +175,9 @@ export class MySqlCacheManager extends DefaultCacheManager {
                         let contentType: string = responseHeader.get('Content-Type');
                         Clogger.info('downLoadFileByUrl contentType', contentType);
                         if (contentType.toLowerCase().indexOf('audio') > -1) {
+                            let fileName = url.substring(url.lastIndexOf('/') + 1, url.length);
+                            let audioPath = audioBasePath + path.sep + url.substring(url.lastIndexOf('/') + 1, url.length);
+                            Clogger.info('downLoadFileByUrl fileName:', fileName, '   audioPath:', audioPath, '  url:', url);
                             let dest = fs.createWriteStream(audioPath);
                             res.body.pipe(dest);
                             res.body.on('error', err => {

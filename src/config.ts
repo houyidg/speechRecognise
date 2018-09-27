@@ -5,14 +5,14 @@ const path = require('path');
 
 log4js.configure({
     appenders: {
-        zhuxiao: {
+        fileOupt: {
             type: 'dateFile', filename: `logs${path.sep}`, pattern: "yyyy-MM-dd-error.log", alwaysIncludePattern: true, absolute: true, maxLogSize: 104800,
             backups: 10
         }, console: {
             type: 'console'
         }
     },
-    categories: { default: { appenders: isDebug ? ['console'] : ['error'], level: 'info' } }
+    categories: { default: { appenders: isDebug ? ['console'] : ['fileOupt'], level: 'info' } }
 });
 
 const baiduConfig = {
@@ -21,7 +21,7 @@ const baiduConfig = {
     SECRET_KEY: "iRrRteLDjlb9AENVQZNWIgWtU5YVy0TO",
     qps: 8
 }
-const Elogger = log4js.getLogger('zhuxiao');
+const Elogger = log4js.getLogger(isDebug ? 'console' : 'fileOupt');
 const Clogger = Elogger;
 const dbConfig = isDebug ? {
     connectionLimit: 20,
